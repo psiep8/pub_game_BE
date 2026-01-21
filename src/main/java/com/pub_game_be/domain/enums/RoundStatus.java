@@ -2,7 +2,7 @@ package com.pub_game_be.domain.enums;
 
 public enum RoundStatus {
     CREATED,
-    BETTING,
+    VOTING,
     WAITING,
     ACTIVE,
     CLOSED,

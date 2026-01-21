@@ -4,10 +4,12 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.Map;
 
 @Controller
+@CrossOrigin(origins = "http://localhost:4200")
 public class GameWebSocketController {
 
     // Quando un giocatore risponde dal telefono, invia a /app/game/{gameId}/answer
