@@ -12,14 +12,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic"); // Canale dove il server invia messaggi
-        config.setApplicationDestinationPrefixes("/app"); // Canale dove il server riceve messaggi
+        config.enableSimpleBroker("/topic");
+        config.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws-pubgame")
-                .setAllowedOriginPatterns("*") // Permette al telefono di connettersi
+                .setAllowedOriginPatterns("*") // ✅ Già corretto
                 .withSockJS();
     }
 }

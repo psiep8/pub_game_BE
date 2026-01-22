@@ -1,22 +1,19 @@
 package com.pub_game_be.controller;
-
 import com.pub_game_be.domain.enums.GameStatus;
 import com.pub_game_be.domain.enums.GameType;
 import com.pub_game_be.domain.enums.RoundStatus;
 import com.pub_game_be.domain.game.Game;
 import com.pub_game_be.domain.game_round.GameRound;
 import com.pub_game_be.repository.GameRepository;
-import com.pub_game_be.repository.GameRoundRepository; // Assicurati di averlo
+import com.pub_game_be.repository.GameRoundRepository;
 import com.pub_game_be.service.GameService;
 import com.pub_game_be.service.QuestionGeneratorService;
 import com.pub_game_be.service.SimpleRoundService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate; // Per WebSocket
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:4200")
 @RestController
 @RequestMapping("/games")
 public class GameController {

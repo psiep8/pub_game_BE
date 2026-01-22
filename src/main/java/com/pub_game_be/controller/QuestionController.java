@@ -1,16 +1,11 @@
 package com.pub_game_be.controller;
-
-import com.pub_game_be.domain.enums.GameStatus;
-import com.pub_game_be.domain.game.Game;
 import com.pub_game_be.domain.question.Question;
-import com.pub_game_be.repository.GameRepository;
 import com.pub_game_be.repository.QuestionRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/questions")
 public class QuestionController {
 
