@@ -18,7 +18,6 @@ public class QuestionGeneratorService {
 
     private final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    // Spring inietterà qui il valore di ${GROQ_API_KEY} definito nell'yml
     @Value("${groq.api.key}")
     private String apiKey;
 
@@ -28,20 +27,43 @@ public class QuestionGeneratorService {
         String difficultyContext = switch (difficulty.toLowerCase()) {
             case "facile" -> "Usa domande molto popolari, quasi ovvie. Adatte a chi non ha studiato l'argomento.";
             case "medio" -> "Usa domande che richiedono una buona conoscenza generale. Evita dettagli troppo oscuri.";
-            case "difficile" -> "Sii molto specifico. Usa dettagli che solo un esperto della materia conoscerebbe. Sfida i giocatori.";
+            case "difficile" ->
+                    "Sii molto specifico. Usa dettagli che solo un esperto della materia conoscerebbe. Sfida i giocatori.";
             default -> "Difficoltà bilanciata.";
         };
+
+        String chronoConstraint = "";
+        if ("CHRONO".equalsIgnoreCase(type)) {
+            chronoConstraint = "IMPORTANTE: Per la modalità CHRONO, l'evento deve essere accaduto tra l'anno 1000 e l'anno attuale. " +
+                    "Assicurati che la 'correctAnswer' sia esclusivamente un numero intero (l'anno).";
+        }
 
         String prompt = String.format(
                 "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria %s di tipo %s.\n" +
                         "LIVELLO DI DIFFICOLTÀ: %s (%s).\n" +
+                        "%s\n" + // Inseriamo il vincolo qui
                         "Rispondi SOLO con un oggetto JSON valido (no testo extra) con questi campi:\n" +
                         "- question: il testo della domanda\n" +
-                        "- options: array di 4 stringhe (QUIZ), array di 2 stringhe ['VERO','FALSO'] (TRUE_FALSE), null solo per CHRONO\n" +
+                        "- options: array di 4 stringhe (QUIZ), array di 2 stringhe ['VERO','FALSO'] (TRUE_FALSE), null per CHRONO\n" +
                         "- correctAnswer: stringa (la risposta esatta o l'anno esatto)\n" +
                         "- type: la stringa %s",
-                category, type, difficulty, difficultyContext, type
+                category, type, difficulty, difficultyContext, chronoConstraint, type
         );
+
+        String imageContext = "";
+        if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei un autore di quiz. Genera un round 'IMAGE_BLUR' su una celebrità mondiale (attori, cantanti, scienziati).\n" +
+                            "REGOLE:\n" +
+                            "1. Scegli un personaggio famoso.\n" +
+                            "2. 'question' deve essere sempre: 'Riconosci la celebrità?'\n" +
+                            "3. 'options' deve essere NULL.\n" +
+                            "4. 'correctAnswer' deve essere il nome del personaggio.\n" +
+                            "5. AGGIUNGI UN CAMPO 'imageUrl' usando esattamente questo formato: https://en.wikipedia.org/wiki/Special:FilePath/NOME_CELEBRITA\n" +
+                            "(Esempio: https://en.wikipedia.org/wiki/Special:FilePath/Elon_Musk)\n\n" +
+                            "Rispondi SOLO in JSON valido."
+            );
+        }
 
         Map<String, Object> request = new HashMap<>();
         request.put("model", "llama-3.3-70b-versatile");
