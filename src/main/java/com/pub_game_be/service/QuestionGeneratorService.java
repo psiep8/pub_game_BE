@@ -2,16 +2,13 @@ package com.pub_game_be.service;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class QuestionGeneratorService {
@@ -21,62 +18,43 @@ public class QuestionGeneratorService {
     @Value("${groq.api.key}")
     private String apiKey;
 
+    private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
+    private final int MAX_RECENT = 20;
+
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
         String difficultyContext = switch (difficulty.toLowerCase()) {
-            case "facile" -> "Usa personaggi/domande molto popolari, quasi ovvi. Adatte a chi non ha studiato l'argomento.";
-            case "medio" -> "Usa personaggi/domande che richiedono una buona conoscenza generale. Evita dettagli troppo oscuri.";
-            case "difficile" -> "Sii molto specifico. Usa dettagli che solo un esperto della materia conoscerebbe. Sfida i giocatori.";
+            case "facile" -> "Usa personaggi/domande molto popolari, quasi ovvi.";
+            case "medio" -> "Usa personaggi/domande di buona fama, ma non iconici.";
+            case "difficile" -> "Sii specifico. Usa personaggi/dettagli meno noti.";
             default -> "Difficoltà bilanciata.";
         };
 
         String prompt;
 
-        // ========== IMAGE_BLUR: Logica speciale ==========
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
-            prompt = String.format(
-                    "Sei il presentatore di un quiz televisivo basato sul riconoscimento visivo.\n" +
-                            "CATEGORIA: %s\n" +
-                            "LIVELLO DI DIFFICOLTÀ: %s (%s).\n\n" +
-                            "Scegli una celebrità o personaggio famoso mondiale coerente con la difficoltà.\n" +
-                            "Rispondi SOLO con un oggetto JSON valido (NO markdown, NO testo extra):\n" +
-                            "{\n" +
-                            "  \"question\": \"Riconosci la celebrità?\",\n" +
-                            "  \"correctAnswer\": \"Nome Completo\",\n" +
-                            "  \"imageUrl\": \"URL_DIRETTO_IMMAGINE\",\n" +
-                            "  \"type\": \"IMAGE_BLUR\",\n" +
-                            "  \"options\": null\n" +
-                            "}\n\n" +
-                            "REGOLE CRITICHE PER imageUrl:\n" +
-                            "1. Usa il servizio Special:FilePath di Wikimedia Commons.\n" +
-                            "2. Formato OBBLIGATORIO: https://commons.wikimedia.org/wiki/Special:FilePath/Nome_Cognome.jpg\n" +
-                            "3. Sostituisci gli spazi con underscore (_).\n" +
-                            "4. Assicurati che il nome sia quello della pagina Wikipedia inglese.\n" +
-                            "5. ESEMPIO: Per Leonardo DiCaprio l'URL deve essere: https://commons.wikimedia.org/wiki/Special:FilePath/Leonardo_DiCaprio.jpg\n" +
-                            "6. ESEMPIO: Per Chris Hemsworth l'URL deve essere: https://commons.wikimedia.org/wiki/Special:FilePath/Chris_Hemsworth.jpg\n" +
-                            "7. Aggiungi SEMPRE '.jpg' alla fine del nome del file.",
-                    category, difficulty, difficultyContext
-            );
-        }
-        // ========== ALTRI TIPI: Logica normale ==========
-        else {
-            prompt = String.format(
-                    "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria %s di tipo %s.\n" +
-                            "LIVELLO DI DIFFICOLTÀ: %s (%s).\n" +
-                            "Rispondi SOLO con un oggetto JSON valido (NO testo extra, NO markdown) con questi campi:\n" +
-                            "- question: il testo della domanda\n" +
-                            "- options: array di 4 stringhe (QUIZ), array di 2 stringhe ['VERO','FALSO'] (TRUE_FALSE), null per CHRONO\n" +
-                            "- correctAnswer: stringa (la risposta esatta o l'anno esatto per CHRONO)\n" +
-                            "- type: la stringa %s",
-                    category, type, difficulty, difficultyContext, type
-            );
+            String recentList = recentCelebrities.isEmpty()
+                    ? "nessuno"
+                    : String.join(", ", recentCelebrities);
+
+            prompt = "Sei il presentatore di un quiz televisivo basato sul riconoscimento visivo.\n" +
+                    "CATEGORIA: " + category + "\n" +
+                    "LIVELLO: " + difficulty + " (" + difficultyContext + ")\n\n" +
+                    "REGOLE DI SELEZIONE:\n" +
+                    "1. Scegli una celebrità diversa ogni volta\n" +
+                    "2. NON usare questi (già usciti): " + recentList + "\n" +
+                    "Rispondi SOLO con JSON valido (NO markdown, NO testo extra), con campo imageUrl diretto a Wikimedia Commons (upload.wikimedia.org) e .jpg.\n" +
+                    "{ \"question\": \"Chi è questa persona?\", \"correctAnswer\": \"Nome Completo\", \"imageUrl\": \"URL_IMMAGINE\", \"type\": \"IMAGE_BLUR\", \"options\": null }";
+        } else {
+            prompt = "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria " + category +
+                    " di tipo " + type + ".\nLivello: " + difficulty + " (" + difficultyContext + ")\nRispondi SOLO con JSON valido.";
         }
 
         Map<String, Object> request = new HashMap<>();
         request.put("model", "llama-3.3-70b-versatile");
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-        request.put("temperature", 0.7); // Più creatività
+        request.put("temperature", "IMAGE_BLUR".equalsIgnoreCase(type) ? 1.3 : 0.7);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(apiKey);
@@ -89,23 +67,44 @@ public class QuestionGeneratorService {
             String rawContent = parseJsonResponse(response.getBody());
             String cleanedJson = cleanAiJson(rawContent);
 
-            // Log per debug
-            System.out.println("=== AI Response for " + type + " ===");
-            System.out.println(cleanedJson);
-            System.out.println("===================================");
+            JSONObject jsonObj = new JSONObject(cleanedJson);
 
-            return cleanedJson;
+            // Risolvi Special:FilePath → URL diretto upload.wikimedia.org
+            if ("IMAGE_BLUR".equalsIgnoreCase(type) && jsonObj.has("imageUrl")) {
+                String imageUrl = jsonObj.getString("imageUrl");
+                if (imageUrl.contains("Special:FilePath")) {
+                    imageUrl = resolveWikimediaImage(imageUrl);
+                    jsonObj.put("imageUrl", imageUrl);
+                }
+            }
+
+            // Aggiorna cache celebrità
+            if ("IMAGE_BLUR".equalsIgnoreCase(type) && jsonObj.has("correctAnswer")) {
+                String celebrity = jsonObj.getString("correctAnswer");
+                addToRecentCelebrities(celebrity);
+            }
+
+            return jsonObj.toString();
+
         } catch (Exception e) {
-            System.err.println("Errore durante la chiamata a Groq: " + e.getMessage());
             e.printStackTrace();
             return getFallbackJson(type);
         }
     }
 
+    private void addToRecentCelebrities(String celebrity) {
+        recentCelebrities.add(celebrity);
+        if (recentCelebrities.size() > MAX_RECENT) {
+            Iterator<String> it = recentCelebrities.iterator();
+            if (it.hasNext()) {
+                it.next();
+                it.remove();
+            }
+        }
+    }
+
     private String cleanAiJson(String content) {
         if (content == null) return "{}";
-
-        // Rimuovi markdown code blocks
         if (content.contains("```json")) {
             content = content.substring(content.indexOf("```json") + 7);
             content = content.substring(0, content.lastIndexOf("```"));
@@ -113,16 +112,9 @@ public class QuestionGeneratorService {
             content = content.substring(content.indexOf("```") + 3);
             content = content.substring(0, content.lastIndexOf("```"));
         }
-
-        // Estrai solo il JSON valido
         int firstBrace = content.indexOf("{");
         int lastBrace = content.lastIndexOf("}");
-
-        if (firstBrace >= 0 && lastBrace >= 0) {
-            return content.substring(firstBrace, lastBrace + 1).trim();
-        }
-
-        return content.trim();
+        return (firstBrace >= 0 && lastBrace >= 0) ? content.substring(firstBrace, lastBrace + 1).trim() : content.trim();
     }
 
     private String parseJsonResponse(String responseBody) {
@@ -133,48 +125,34 @@ public class QuestionGeneratorService {
                 .getString("content");
     }
 
-    /**
-     * Fallback JSON in caso di errore API
-     */
     private String getFallbackJson(String type) {
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
             return """
-                {
-                    "question": "Chi è questa persona?",
-                    "correctAnswer": "Tom Hanks",
-                    "imageUrl": "https://en.wikipedia.org/wiki/Special:FilePath/Tom_Hanks",
-                    "type": "IMAGE_BLUR",
-                    "options": null
-                }
-                """;
-        } else if ("QUIZ".equalsIgnoreCase(type)) {
-            return """
-                {
-                    "question": "Qual è la capitale dell'Italia?",
-                    "options": ["Roma", "Milano", "Napoli", "Firenze"],
-                    "correctAnswer": "Roma",
-                    "type": "QUIZ"
-                }
-                """;
-        } else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
-            return """
-                {
-                    "question": "Il Sole è una stella.",
-                    "options": ["VERO", "FALSO"],
-                    "correctAnswer": "VERO",
-                    "type": "TRUE_FALSE"
-                }
-                """;
-        } else if ("CHRONO".equalsIgnoreCase(type)) {
-            return """
-                {
-                    "question": "In che anno è caduto il muro di Berlino?",
-                    "options": null,
-                    "correctAnswer": "1989",
-                    "type": "CHRONO"
-                }
-                """;
+                    {
+                        "question": "Chi è questa persona?",
+                        "correctAnswer": "Tom Hanks",
+                        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/44/Tom_Hanks.jpg",
+                        "type": "IMAGE_BLUR",
+                        "options": null
+                    }
+                    """;
         }
         return "{}";
+    }
+
+    private String resolveWikimediaImage(String filePathUrl) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "PubGameBot/1.0");
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Void> response = restTemplate.exchange(filePathUrl, HttpMethod.HEAD, entity, Void.class);
+            URI finalUri = response.getHeaders().getLocation();
+            return finalUri != null ? finalUri.toString() : filePathUrl;
+        } catch (Exception e) {
+            System.err.println("Errore risoluzione immagine: " + e.getMessage());
+            return filePathUrl;
+        }
     }
 }
