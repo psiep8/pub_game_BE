@@ -20,8 +20,7 @@ public class QuestionGeneratorService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    private final
-    TMDBImageService tmdbImageService;
+    private final TMDBImageService tmdbImageService;
 
     // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
@@ -34,12 +33,15 @@ public class QuestionGeneratorService {
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
-        // Tipo WHEEL_FORTUNE -> restituisce solo un proverbio
+        // ========== WHEEL_FORTUNE: Restituisce SOLO il proverbio nel payload ==========
         if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
             String proverb = pickRandomProverb();
-            JSONObject obj = new JSONObject();
-            obj.put("proverb", proverb);
-            return obj.toString();
+
+            System.out.println("🎰 WHEEL_FORTUNE generato");
+            System.out.println("📜 Proverbio: " + proverb);
+
+            // Restituiamo SOLO la stringa del proverbio (non un JSON annidato)
+            return proverb;
         }
 
         String difficultyContext = switch (difficulty.toLowerCase()) {
@@ -293,33 +295,39 @@ public class QuestionGeneratorService {
                 }
                 """;
         } else if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
-            String proverb = pickRandomProverb();
-            JSONObject obj = new JSONObject();
-            obj.put("proverb", proverb);
-            return obj.toString();
+            // Fallback: restituisci solo il proverbio come stringa
+            return pickRandomProverb();
         }
         return "{}";
     }
 
+    /**
+     * Lista curata di proverbi italiani famosi per la Ruota della Fortuna
+     */
     private String pickRandomProverb() {
         String[] provs = new String[]{
-                "Tanto va la gatta al lardo che ci lascia lo zampino.",
-                "Chi semina vento raccoglie tempesta.",
-                "Meglio un uovo oggi che una gallina domani.",
-                "Non è tutto oro quel che luccica.",
-                "Tra il dire e il fare c'è di mezzo il mare.",
-                "A caval donato non si guarda in bocca.",
-                "Chi fa da sé fa per tre.",
-                "Piove sul bagnato.",
-                "L'abito non fa il monaco.",
-                "Ride bene chi ride ultimo.",
-                "Occhio per occhio, dente per dente.",
-                "Meglio soli che male accompagnati.",
-                "Non si può avere la botte piena e la moglie ubriaca.",
-                "Tra moglie e marito non mettere il dito.",
-                "Una rondine non fa primavera, ma ogni tanto speriamo che arrivi il bel tempo.",
-                "Casa mia, casa mia, per piccina che tu sia, tu sei la più bella del reame."
+                "Chi dorme non piglia pesci",
+                "Meglio tardi che mai",
+                "L'abito non fa il monaco",
+                "Chi va piano va sano e va lontano",
+                "Non è tutto oro quel che luccica",
+                "Chi la fa l'aspetti",
+                "Tra il dire e il fare c'è di mezzo il mare",
+                "A caval donato non si guarda in bocca",
+                "Chi semina vento raccoglie tempesta",
+                "Meglio un uovo oggi che una gallina domani",
+                "Tanto va la gatta al lardo che ci lascia lo zampino",
+                "Chi fa da sé fa per tre",
+                "Piove sul bagnato",
+                "Ride bene chi ride ultimo",
+                "Meglio soli che male accompagnati",
+                "Non si può avere la botte piena e la moglie ubriaca",
+                "Tra moglie e marito non mettere il dito",
+                "Chi troppo vuole nulla stringe",
+                "Il lupo perde il pelo ma non il vizio",
+                "Rosso di sera bel tempo si spera"
         };
         return provs[new Random().nextInt(provs.length)];
     }
 }
+
