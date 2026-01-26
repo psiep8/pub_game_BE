@@ -33,6 +33,14 @@ public class QuestionGeneratorService {
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
+        // Nuovo tipo: WHEEL_FORTUNE -> restituisce solo un proverbio breve/medio
+        if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
+            String proverb = pickRandomProverb();
+            JSONObject obj = new JSONObject();
+            obj.put("proverb", proverb);
+            return obj.toString();
+        }
+
         String difficultyContext = switch (difficulty.toLowerCase()) {
             case "facile" -> "Usa personaggi/domande molto popolari, quasi ovvi.";
             case "medio" -> "Usa personaggi/domande di buona fama, ma non iconici.";
@@ -270,7 +278,39 @@ public class QuestionGeneratorService {
                     "type": "CHRONO"
                 }
                 """;
+        } else if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
+            // Fallback lista di proverbi
+            String proverb = pickRandomProverb();
+            JSONObject obj = new JSONObject();
+            obj.put("proverb", proverb);
+            return obj.toString();
         }
         return "{}";
     }
+
+    /**
+     * Lista curata di proverbi/frasidi uso comune (semi-lunghi)
+     */
+    private String pickRandomProverb() {
+        String[] provs = new String[]{
+                "Tanto va la gatta al lardo che ci lascia lo zampino.",
+                "Chi semina vento raccoglie tempesta.",
+                "Meglio un uovo oggi che una gallina domani.",
+                "Non è tutto oro quel che luccica.",
+                "Tra il dire e il fare c'è di mezzo il mare.",
+                "A caval donato non si guarda in bocca.",
+                "Chi fa da sé fa per tre.",
+                "Piove sul bagnato.",
+                "L'abito non fa il monaco.",
+                "Ride bene chi ride ultimo.",
+                "Occhio per occhio, dente per dente.",
+                "Meglio soli che male accompagnati.",
+                "Non si può avere la botte piena e la moglie ubriaca.",
+                "Tra moglie e marito non mettere il dito.",
+                "Una rondine non fa primavera, ma ogni tanto speriamo che arrivi il bel tempo.",
+                "Casa mia, casa mia, per piccina che tu sia, tu sei la più bella del reame."
+        };
+        return provs[new Random().nextInt(provs.length)];
+    }
 }
+

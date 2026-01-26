@@ -7,8 +7,12 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Servizio per ottenere URL immagini celebrità
@@ -60,9 +64,9 @@ public class CelebrityImageService {
     }
 
     /**
-     * Fallback con immagini predefinite di alta qualità
+     * Costruisce e restituisce la mappa di fallback con chiavi normalizzate (lowercase)
      */
-    public String getFallbackImageUrl(String celebrityName) {
+    private Map<String, String> buildFallbackMap() {
         Map<String, String> fallbackImages = new HashMap<>();
 
         // Internazionali - Pexels immagini dirette (sempre funzionanti)
@@ -88,8 +92,23 @@ public class CelebrityImageService {
         fallbackImages.put("Alessandro Cattelan", "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?w=800");
         fallbackImages.put("Jasmine Trinca", "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?w=800");
 
-        return fallbackImages.getOrDefault(
-                celebrityName,
+        // Normalizza le chiavi in lowercase per lookup case-insensitive
+        Map<String, String> normalized = new HashMap<>();
+        for (Map.Entry<String, String> e : fallbackImages.entrySet()) {
+            normalized.put(e.getKey().toLowerCase(Locale.ROOT).trim(), e.getValue());
+        }
+        return normalized;
+    }
+
+    /**
+     * Fallback con immagini predefinite di alta qualità
+     */
+    public String getFallbackImageUrl(String celebrityName) {
+        Map<String, String> normalized = buildFallbackMap();
+        String key = celebrityName == null ? "" : celebrityName.toLowerCase(Locale.ROOT).trim();
+
+        return normalized.getOrDefault(
+                key,
                 "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?w=800"
         );
     }
@@ -98,9 +117,34 @@ public class CelebrityImageService {
      * Ottiene immagine con strategia multi-fallback
      */
     public String getReliableImageUrl(String celebrityName) {
-        // SEMPRE usa fallback diretto per garantire funzionamento
-        // Pexels API richiede key e ha limiti
-        return getFallbackImageUrl(celebrityName);
+        if (celebrityName == null || celebrityName.trim().isEmpty()) {
+            return getFallbackImageUrl(celebrityName);
+        }
+
+        String trimmed = celebrityName.trim();
+        String key = trimmed.toLowerCase(Locale.ROOT);
+
+        Map<String, String> normalized = buildFallbackMap();
+
+        // 1) Se abbiamo una mappatura diretta, usala
+        if (normalized.containsKey(key)) {
+            return normalized.get(key);
+        }
+
+        // 2) Heuristica: alcuni nomi internazionali preferiscono en.wikipedia, altri it.wikipedia
+        Set<String> internationals = Set.of(
+                "leonardo dicaprio", "tom hanks", "margot robbie", "brad pitt",
+                "zendaya", "jake gyllenhaal", "pedro pascal", "oscar isaac"
+        );
+
+        String wikiName = trimmed.replaceAll("\\s+", "_");
+        String encoded = URLEncoder.encode(wikiName, StandardCharsets.UTF_8);
+
+        String lang = internationals.contains(key) ? "en" : "it";
+        String wikiUrl = String.format("https://%s.wikipedia.org/wiki/Special:FilePath/%s", lang, encoded);
+
+        // 3) Come fallback finale, ritorna immagine generica
+        return wikiUrl != null ? wikiUrl : getFallbackImageUrl(celebrityName);
     }
 }
 

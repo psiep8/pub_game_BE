@@ -28,6 +28,11 @@ groq:
   api:
     key: ${GROQ_API_KEY}
 
+tmdb:
+  api:
+    key: ${TMDB_API_KEY}
+
+
 game:
   difficulty-levels:
     facile: "domande per bambini o cultura generale molto basilare. Risposte ovvie."
