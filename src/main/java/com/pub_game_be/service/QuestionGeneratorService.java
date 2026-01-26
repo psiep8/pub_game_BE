@@ -33,8 +33,10 @@ public class QuestionGeneratorService {
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
-        // ========== WHEEL_FORTUNE: Restituisce SOLO il proverbio nel payload ==========
-        if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
+        // ========== WHEEL_FORTUNE / WHEEL_OF_FORTUNE: Restituisce SOLO il proverbio nel payload ==========
+        if ("WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
+                || "WHEEL_FORTUNE".equalsIgnoreCase(type)
+                || "PROVERB".equalsIgnoreCase(type)) {
             String proverb = pickRandomProverb();
 
             System.out.println("🎰 WHEEL_FORTUNE generato");
@@ -269,32 +271,34 @@ public class QuestionGeneratorService {
 
         } else if ("QUIZ".equalsIgnoreCase(type)) {
             return """
-                {
-                    "question": "Qual è la capitale dell'Italia?",
-                    "options": ["Roma", "Milano", "Napoli", "Firenze"],
-                    "correctAnswer": "Roma",
-                    "type": "QUIZ"
-                }
-                """;
+                    {
+                        "question": "Qual è la capitale dell'Italia?",
+                        "options": ["Roma", "Milano", "Napoli", "Firenze"],
+                        "correctAnswer": "Roma",
+                        "type": "QUIZ"
+                    }
+                    """;
         } else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
             return """
-                {
-                    "question": "Il Sole è una stella.",
-                    "options": ["VERO", "FALSO"],
-                    "correctAnswer": "VERO",
-                    "type": "TRUE_FALSE"
-                }
-                """;
+                    {
+                        "question": "Il Sole è una stella.",
+                        "options": ["VERO", "FALSO"],
+                        "correctAnswer": "VERO",
+                        "type": "TRUE_FALSE"
+                    }
+                    """;
         } else if ("CHRONO".equalsIgnoreCase(type)) {
             return """
-                {
-                    "question": "In che anno è caduto il muro di Berlino?",
-                    "options": null,
-                    "correctAnswer": "1989",
-                    "type": "CHRONO"
-                }
-                """;
-        } else if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
+                    {
+                        "question": "In che anno è caduto il muro di Berlino?",
+                        "options": null,
+                        "correctAnswer": "1989",
+                        "type": "CHRONO"
+                    }
+                    """;
+        } else if ("WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
+                || "WHEEL_FORTUNE".equalsIgnoreCase(type)
+                || "PROVERB".equalsIgnoreCase(type)) {
             // Fallback: restituisci solo il proverbio come stringa
             return pickRandomProverb();
         }
@@ -307,25 +311,40 @@ public class QuestionGeneratorService {
     private String pickRandomProverb() {
         String[] provs = new String[]{
                 "Chi dorme non piglia pesci",
-                "Meglio tardi che mai",
                 "L'abito non fa il monaco",
                 "Chi va piano va sano e va lontano",
                 "Non è tutto oro quel che luccica",
-                "Chi la fa l'aspetti",
                 "Tra il dire e il fare c'è di mezzo il mare",
                 "A caval donato non si guarda in bocca",
                 "Chi semina vento raccoglie tempesta",
                 "Meglio un uovo oggi che una gallina domani",
                 "Tanto va la gatta al lardo che ci lascia lo zampino",
-                "Chi fa da sé fa per tre",
-                "Piove sul bagnato",
-                "Ride bene chi ride ultimo",
                 "Meglio soli che male accompagnati",
                 "Non si può avere la botte piena e la moglie ubriaca",
                 "Tra moglie e marito non mettere il dito",
                 "Chi troppo vuole nulla stringe",
                 "Il lupo perde il pelo ma non il vizio",
-                "Rosso di sera bel tempo si spera"
+                "Rosso di sera bel tempo si spera",
+                "Chi fa da sé fa per tre",
+                "Il gioco non vale la candela",
+                "Chi trova un amico trova un tesoro",
+                "Non tutte le ciambelle riescono col buco",
+                "Chi è causa del suo mal pianga sé stesso",
+                "Quando il gatto non c'è i topi ballano",
+                "Chi ben comincia è a metà dell'opera",
+                "L'erba del vicino è sempre più verde",
+                "Non rimandare a domani quello che puoi fare oggi",
+                "Chi ha tempo non aspetti tempo",
+                "Chi va con lo zoppo impara a zoppicare",
+                "Chi non risica non rosica",
+                "Meglio prevenire che curare",
+                "Chi di spada ferisce di spada perisce",
+                "Il diavolo fa le pentole ma non i coperchi",
+                "Acqua passata non macina più",
+                "Chi di speranza vive disperato muore",
+                "Non tutto il male viene per nuocere",
+                "Chi ha orecchie per intendere intenda",
+                "A buon intenditor poche parole",
         };
         return provs[new Random().nextInt(provs.length)];
     }
