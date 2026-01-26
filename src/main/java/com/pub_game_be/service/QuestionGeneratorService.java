@@ -20,20 +20,21 @@ public class QuestionGeneratorService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    private final CelebrityImageService imageService;
+    private final
+    TMDBImageService tmdbImageService;
 
     // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(CelebrityImageService imageService) {
-        this.imageService = imageService;
-    } // Ricorda ultimi 20 personaggi
+    public QuestionGeneratorService(TMDBImageService tmdbImageService) {
+        this.tmdbImageService = tmdbImageService;
+    }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
-        // Nuovo tipo: WHEEL_FORTUNE -> restituisce solo un proverbio breve/medio
+        // Tipo WHEEL_FORTUNE -> restituisce solo un proverbio
         if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
             String proverb = pickRandomProverb();
             JSONObject obj = new JSONObject();
@@ -50,9 +51,8 @@ public class QuestionGeneratorService {
 
         String prompt;
 
-        // ========== IMAGE_BLUR: Logica speciale ==========
+        // ========== IMAGE_BLUR: Usa TMDB per immagini verificate ==========
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
-            // Lista dei personaggi recenti per evitare ripetizioni
             String recentList = recentCelebrities.isEmpty()
                     ? "nessuno"
                     : String.join(", ", recentCelebrities);
@@ -62,36 +62,29 @@ public class QuestionGeneratorService {
                             "CATEGORIA: %s\n" +
                             "LIVELLO: %s (%s)\n\n" +
                             "REGOLE DI SELEZIONE:\n" +
-                            "1. Scegli una celebrità DIVERSA ogni volta\n" +
+                            "1. Scegli UNA celebrità DIVERSA ogni volta\n" +
                             "2. NON USARE QUESTI (già usciti): %s\n" +
                             "3. PREFERENZA per personaggi ITALIANI (60%% italiani, 40%% internazionali)\n" +
-                            "4. Varia tra: attori, cantanti, sportivi, registi, conduttori TV\n\n" +
+                            "4. Varia tra: attori, cantanti, sportivi, registi, conduttori TV\n" +
+                            "5. USA SOLO personaggi presenti su TMDB/IMDb (cinema, TV, musica popolare)\n\n" +
                             "ESEMPI ITALIANI livello MEDIO:\n" +
-                            "- Cinema: Alessandro Borghi, Luca Marinelli, Jasmine Trinca, Valeria Golino\n" +
-                            "- Musica: Mahmood, Blanco, Elodie, Annalisa\n" +
-                            "- Sport: Jannik Sinner, Gianmarco Tamberi, Federica Pellegrini\n" +
-                            "- TV: Alessandro Cattelan, Geppi Cucciari, Nino Frassica\n\n" +
+                            "- Cinema: Alessandro Borghi, Luca Marinelli, Jasmine Trinca, Valeria Golino, Elio Germano\n" +
+                            "- Musica: Mahmood, Blanco, Elodie, Annalisa, Giorgia, Tiziano Ferro\n" +
+                            "- Sport famosi: Francesco Totti, Valentino Rossi (se hanno apparizioni TV/film)\n" +
+                            "- TV: Alessandro Cattelan, Fabio Fazio, Geppi Cucciari\n\n" +
                             "ESEMPI INTERNAZIONALI livello MEDIO:\n" +
-                            "- Jake Gyllenhaal, Margot Robbie, Zendaya, Pedro Pascal, Oscar Isaac\n\n" +
+                            "- Jake Gyllenhaal, Margot Robbie, Zendaya, Pedro Pascal, Oscar Isaac, Ryan Gosling, Emma Stone\n\n" +
                             "Rispondi SOLO con JSON valido (NO markdown, NO testo extra):\n" +
                             "{\n" +
                             "  \"question\": \"Chi è questa persona?\",\n" +
-                            "  \"correctAnswer\": \"Nome Completo\",\n" +
-                            "  \"imageUrl\": \"URL_IMMAGINE\",\n" +
+                            "  \"correctAnswer\": \"Nome Completo Esatto\",\n" +
                             "  \"type\": \"IMAGE_BLUR\",\n" +
                             "  \"options\": null\n" +
                             "}\n\n" +
-                            "FORMATO URL OBBLIGATORIO:\n" +
-                            "Per personaggi ITALIANI:\n" +
-                            "- https://it.wikipedia.org/wiki/Special:FilePath/Nome_Cognome\n" +
-                            "Esempio: https://it.wikipedia.org/wiki/Special:FilePath/Alessandro_Borghi\n\n" +
-                            "Per personaggi INTERNAZIONALI:\n" +
-                            "- https://en.wikipedia.org/wiki/Special:FilePath/Nome_Cognome\n" +
-                            "Esempio: https://en.wikipedia.org/wiki/Special:FilePath/Jake_Gyllenhaal\n\n" +
                             "IMPORTANTE:\n" +
-                            "- Sostituisci spazi con underscore (_)\n" +
-                            "- NON aggiungere estensioni (.jpg, .png)\n" +
-                            "- Usa il nome ESATTO della pagina Wikipedia",
+                            "- Usa il nome COMPLETO esatto (es: 'Leonardo DiCaprio', non 'Leo DiCaprio')\n" +
+                            "- Verifica che sia una persona reale con presenza su TMDB\n" +
+                            "- Non inventare nomi o usare persone non famose",
                     category, difficulty, difficultyContext, recentList
             );
         }
@@ -139,18 +132,26 @@ public class QuestionGeneratorService {
             try {
                 JSONObject jsonObj = new JSONObject(cleanedJson);
 
-                // Se IMAGE_BLUR, sostituisci imageUrl con Unsplash
+                // Se IMAGE_BLUR, cerca immagine su TMDB
                 if ("IMAGE_BLUR".equalsIgnoreCase(type) && jsonObj.has("correctAnswer")) {
                     String celebrity = jsonObj.getString("correctAnswer");
 
-                    // Genera URL immagine affidabile
-                    String imageUrl = imageService.getReliableImageUrl(celebrity);
-                    jsonObj.put("imageUrl", imageUrl);
+                    // Ottieni immagine da TMDB
+                    String imageUrl = tmdbImageService.getCelebrityImageUrl(celebrity);
 
-                    addToRecentCelebrities(celebrity);
-                    System.out.println("✅ Celebrità: " + celebrity);
-                    System.out.println("🖼️ Immagine URL: " + imageUrl);
-                    System.out.println("📋 Cache: " + recentCelebrities);
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        jsonObj.put("imageUrl", imageUrl);
+                        addToRecentCelebrities(celebrity);
+
+                        System.out.println("✅ Celebrità: " + celebrity);
+                        System.out.println("🖼️ TMDB Image URL: " + imageUrl);
+                        System.out.println("📋 Cache recenti: " + recentCelebrities);
+                    } else {
+                        // Se TMDB non trova l'immagine, riprova con un'altra celebrità
+                        System.out.println("⚠️ TMDB non ha immagine per: " + celebrity);
+                        System.out.println("🔄 Rigenerando domanda...");
+                        return generateQuestionJson(category, type, difficulty);
+                    }
 
                     cleanedJson = jsonObj.toString();
                 }
@@ -178,7 +179,6 @@ public class QuestionGeneratorService {
 
         // Mantieni solo gli ultimi MAX_RECENT
         if (recentCelebrities.size() > MAX_RECENT) {
-            // Rimuovi il più vecchio (implementazione semplificata)
             Iterator<String> iterator = recentCelebrities.iterator();
             if (iterator.hasNext()) {
                 iterator.next();
@@ -220,13 +220,12 @@ public class QuestionGeneratorService {
 
     private String getFallbackJson(String type) {
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
-            // Fallback italiani per varietà
-            String[] italianFallbacks = {
+            // Fallback con celebrità ultra-famose che TMDB ha sicuramente
+            String[] safeFallbacks = {
                     """
                 {
                     "question": "Chi è questa persona?",
-                    "correctAnswer": "Alessandro Borghi",
-                    "imageUrl": "https://it.wikipedia.org/wiki/Special:FilePath/Alessandro_Borghi",
+                    "correctAnswer": "Leonardo DiCaprio",
                     "type": "IMAGE_BLUR",
                     "options": null
                 }
@@ -234,8 +233,7 @@ public class QuestionGeneratorService {
                     """
                 {
                     "question": "Chi è questa persona?",
-                    "correctAnswer": "Elodie",
-                    "imageUrl": "https://it.wikipedia.org/wiki/Special:FilePath/Elodie",
+                    "correctAnswer": "Brad Pitt",
                     "type": "IMAGE_BLUR",
                     "options": null
                 }
@@ -243,14 +241,30 @@ public class QuestionGeneratorService {
                     """
                 {
                     "question": "Chi è questa persona?",
-                    "correctAnswer": "Jannik Sinner",
-                    "imageUrl": "https://it.wikipedia.org/wiki/Special:FilePath/Jannik_Sinner",
+                    "correctAnswer": "Tom Hanks",
                     "type": "IMAGE_BLUR",
                     "options": null
                 }
                 """
             };
-            return italianFallbacks[new Random().nextInt(italianFallbacks.length)];
+
+            String fallbackJson = safeFallbacks[new Random().nextInt(safeFallbacks.length)];
+
+            // Anche per fallback, cerca immagine su TMDB
+            try {
+                JSONObject obj = new JSONObject(fallbackJson);
+                String celebrity = obj.getString("correctAnswer");
+                String imageUrl = tmdbImageService.getCelebrityImageUrl(celebrity);
+                if (imageUrl != null) {
+                    obj.put("imageUrl", imageUrl);
+                    return obj.toString();
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Errore fallback TMDB: " + e.getMessage());
+            }
+
+            return fallbackJson;
+
         } else if ("QUIZ".equalsIgnoreCase(type)) {
             return """
                 {
@@ -279,7 +293,6 @@ public class QuestionGeneratorService {
                 }
                 """;
         } else if ("WHEEL_FORTUNE".equalsIgnoreCase(type) || "PROVERB".equalsIgnoreCase(type)) {
-            // Fallback lista di proverbi
             String proverb = pickRandomProverb();
             JSONObject obj = new JSONObject();
             obj.put("proverb", proverb);
@@ -288,9 +301,6 @@ public class QuestionGeneratorService {
         return "{}";
     }
 
-    /**
-     * Lista curata di proverbi/frasidi uso comune (semi-lunghi)
-     */
     private String pickRandomProverb() {
         String[] provs = new String[]{
                 "Tanto va la gatta al lardo che ci lascia lo zampino.",
@@ -313,4 +323,3 @@ public class QuestionGeneratorService {
         return provs[new Random().nextInt(provs.length)];
     }
 }
-
