@@ -5,5 +5,6 @@ public enum GameType {
     TRUE_FALSE,
     MUSIC,          // Buzz + Audio
     IMAGE_BLUR,     // Buzz + Blur
-    CHRONO
+    CHRONO,
+    WHEEL_OF_FORTUNE
 }
