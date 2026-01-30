@@ -1,5 +1,6 @@
 package com.pub_game_be.service;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -32,7 +33,21 @@ public class QuestionGeneratorService {
 
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
+        if ("ROULETTE".equalsIgnoreCase(type)) {
+            String[] colors = {"ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"};
+            String winningColor = colors[new Random().nextInt(colors.length)];
 
+            JSONObject response = new JSONObject();
+            response.put("type", "ROULETTE");
+            response.put("question", "Scegli un colore!");
+            response.put("correctAnswer", winningColor);
+            response.put("options", new JSONArray(colors));
+            response.put("payload", JSONObject.NULL);
+
+            System.out.println("🎰 ROULETTE generata - Colore vincente: " + winningColor);
+
+            return response.toString();
+        }
         // ========== WHEEL_FORTUNE / WHEEL_OF_FORTUNE: Restituisce SOLO il proverbio nel payload ==========
         if ("WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
                 || "WHEEL_FORTUNE".equalsIgnoreCase(type)
@@ -301,7 +316,17 @@ public class QuestionGeneratorService {
                 || "PROVERB".equalsIgnoreCase(type)) {
             // Fallback: restituisci solo il proverbio come stringa
             return pickRandomProverb();
+        } else if ("ROULETTE".equalsIgnoreCase(type)) {
+            return """
+                    {
+                        "question": "Scegli un colore!",
+                        "options": ["ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"],
+                        "correctAnswer": "ROSSO",
+                        "type": "ROULETTE"
+                    }
+                    """;
         }
+
         return "{}";
     }
 
