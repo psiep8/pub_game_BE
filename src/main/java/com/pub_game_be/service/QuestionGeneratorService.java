@@ -1,5 +1,6 @@
 package com.pub_game_be.service;
 
+import com.pub_game_be.dto.AppleMusicTrack;
 import com.pub_game_be.dto.MusicTrackDto;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -23,15 +24,15 @@ public class QuestionGeneratorService {
     private String apiKey;
 
     private final TMDBImageService tmdbImageService;
-    private final DeezerCuratorService deezerCuratorService;
+    private final AppleMusicCuratorService appleMusicCuratorService;
 
     // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService, DeezerCuratorService deezerCuratorService) {
+    public QuestionGeneratorService(TMDBImageService tmdbImageService, AppleMusicCuratorService appleMusicCuratorService) {
         this.tmdbImageService = tmdbImageService;
-        this.deezerCuratorService = deezerCuratorService;
+        this.appleMusicCuratorService = appleMusicCuratorService;
     }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
@@ -380,7 +381,7 @@ public class QuestionGeneratorService {
         return provs[new Random().nextInt(provs.length)];
     }
     private String generateMusicQuestion() {
-        MusicTrackDto track = deezerCuratorService.getFamousSong();
+        MusicTrackDto track = appleMusicCuratorService.getFamousSong();
 
         JSONObject payload = new JSONObject();
         payload.put("songTitle", track.title);
