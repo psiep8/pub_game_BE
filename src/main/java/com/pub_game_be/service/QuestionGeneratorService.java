@@ -1,5 +1,6 @@
 package com.pub_game_be.service;
 
+import com.pub_game_be.dto.MusicTrackDto;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,13 +23,15 @@ public class QuestionGeneratorService {
     private String apiKey;
 
     private final TMDBImageService tmdbImageService;
+    private final DeezerCuratorService deezerCuratorService;
 
     // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService) {
+    public QuestionGeneratorService(TMDBImageService tmdbImageService, DeezerCuratorService deezerCuratorService) {
         this.tmdbImageService = tmdbImageService;
+        this.deezerCuratorService = deezerCuratorService;
     }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
@@ -106,6 +109,9 @@ public class QuestionGeneratorService {
                             "- Non inventare nomi o usare persone non famose",
                     category, difficulty, difficultyContext, recentList
             );
+        }
+        if ("MUSIC".equalsIgnoreCase(type)) {
+            return generateMusicQuestion();
         }
         // ========== ALTRI TIPI: Logica normale ==========
         else {
@@ -373,5 +379,26 @@ public class QuestionGeneratorService {
         };
         return provs[new Random().nextInt(provs.length)];
     }
+    private String generateMusicQuestion() {
+        MusicTrackDto track = deezerCuratorService.getFamousSong();
+
+        JSONObject payload = new JSONObject();
+        payload.put("songTitle", track.title);
+        payload.put("artist", track.artist);
+        payload.put("previewUrl", track.previewUrl);
+        payload.put("albumCover", track.albumCover);
+        payload.put("year", track.year);
+        payload.put("source", track.source);
+
+        JSONObject response = new JSONObject();
+        response.put("type", "MUSIC");
+        response.put("payload", payload);
+
+        System.out.println("🎤 SONG generata:");
+        System.out.println("🎵 " + track.title + " - " + track.artist);
+
+        return response.toString();
+    }
+
 }
 

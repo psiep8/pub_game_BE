@@ -7,5 +7,5 @@ public enum GameType {
     IMAGE_BLUR,     // Buzz + Blur
     ROULETTE,
     CHRONO,
-    WHEEL_OF_FORTUNE
+    WHEEL_OF_FORTUNE,
 }
