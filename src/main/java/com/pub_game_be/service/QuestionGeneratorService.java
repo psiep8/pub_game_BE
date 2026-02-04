@@ -1,5 +1,7 @@
 package com.pub_game_be.service;
 
+import com.pub_game_be.dto.AppleMusicTrack;
+import com.pub_game_be.dto.MusicTrackDto;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,13 +24,15 @@ public class QuestionGeneratorService {
     private String apiKey;
 
     private final TMDBImageService tmdbImageService;
+    private final AppleMusicCuratorService appleMusicCuratorService;
 
     // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService) {
+    public QuestionGeneratorService(TMDBImageService tmdbImageService, AppleMusicCuratorService appleMusicCuratorService) {
         this.tmdbImageService = tmdbImageService;
+        this.appleMusicCuratorService = appleMusicCuratorService;
     }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
@@ -106,6 +110,9 @@ public class QuestionGeneratorService {
                             "- Non inventare nomi o usare persone non famose",
                     category, difficulty, difficultyContext, recentList
             );
+        }
+        if ("MUSIC".equalsIgnoreCase(type)) {
+            return generateMusicQuestion();
         }
         // ========== ALTRI TIPI: Logica normale ==========
         else {
@@ -373,5 +380,23 @@ public class QuestionGeneratorService {
         };
         return provs[new Random().nextInt(provs.length)];
     }
+
+    private String generateMusicQuestion() {
+        MusicTrackDto track = appleMusicCuratorService.getFamousSong();
+
+        // 🔥 JSON PIATTO (no doppio nesting)
+        JSONObject response = new JSONObject();
+        response.put("type", "MUSIC");
+        response.put("songTitle", track.title);
+        response.put("artist", track.artist);
+        response.put("previewUrl", track.previewUrl);
+        response.put("albumCover", track.albumCover);
+        response.put("year", track.year);
+        response.put("source", track.source);
+        response.put("payload", JSONObject.NULL); // Non serve
+
+        return response.toString();
+    }
+
 }
 
