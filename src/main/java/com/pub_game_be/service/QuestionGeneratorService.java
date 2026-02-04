@@ -380,23 +380,20 @@ public class QuestionGeneratorService {
         };
         return provs[new Random().nextInt(provs.length)];
     }
+
     private String generateMusicQuestion() {
         MusicTrackDto track = appleMusicCuratorService.getFamousSong();
 
-        JSONObject payload = new JSONObject();
-        payload.put("songTitle", track.title);
-        payload.put("artist", track.artist);
-        payload.put("previewUrl", track.previewUrl);
-        payload.put("albumCover", track.albumCover);
-        payload.put("year", track.year);
-        payload.put("source", track.source);
-
+        // 🔥 JSON PIATTO (no doppio nesting)
         JSONObject response = new JSONObject();
         response.put("type", "MUSIC");
-        response.put("payload", payload);
-
-        System.out.println("🎤 SONG generata:");
-        System.out.println("🎵 " + track.title + " - " + track.artist);
+        response.put("songTitle", track.title);
+        response.put("artist", track.artist);
+        response.put("previewUrl", track.previewUrl);
+        response.put("albumCover", track.albumCover);
+        response.put("year", track.year);
+        response.put("source", track.source);
+        response.put("payload", JSONObject.NULL); // Non serve
 
         return response.toString();
     }
