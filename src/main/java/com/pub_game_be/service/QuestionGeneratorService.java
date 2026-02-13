@@ -114,8 +114,83 @@ public class QuestionGeneratorService {
         if ("MUSIC".equalsIgnoreCase(type)) {
             return generateMusicQuestion();
         }
-        // ========== ALTRI TIPI: Logica normale ==========
-        else {
+        if ("QUIZ".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei il presentatore di un quiz televisivo.\n" +
+                            "CATEGORIA: %s\n" +
+                            "LIVELLO: %s (%s)\n\n" +
+                            "Genera UNA domanda di cultura generale.\n\n" +
+                            "REGOLE RIGIDE:\n" +
+                            "1. La domanda deve avere 4 opzioni di risposta\n" +
+                            "2. UNA SOLA risposta deve essere corretta\n" +
+                            "3. Le altre 3 devono essere PLAUSIBILI ma SBAGLIATE\n" +
+                            "4. La 'correctAnswer' DEVE essere IDENTICA a una delle 4 opzioni\n" +
+                            "5. NON inventare fatti o date inesistenti\n\n" +
+                            "ESEMPIO VALIDO:\n" +
+                            "{\n" +
+                            "  \"question\": \"Qual è la capitale della Francia?\",\n" +
+                            "  \"options\": [\"Parigi\", \"Londra\", \"Berlino\", \"Madrid\"],\n" +
+                            "  \"correctAnswer\": \"Parigi\",\n" +
+                            "  \"type\": \"QUIZ\"\n" +
+                            "}\n\n" +
+                            "ESEMPIO NON VALIDO (correctAnswer non è nelle options):\n" +
+                            "{\n" +
+                            "  \"question\": \"Qual è la capitale della Francia?\",\n" +
+                            "  \"options\": [\"Londra\", \"Berlino\", \"Madrid\", \"Roma\"],\n" +
+                            "  \"correctAnswer\": \"Parigi\"\n" +
+                            "}\n\n" +
+                            "Rispondi SOLO con JSON valido (NO markdown, NO testo extra).\n" +
+                            "IMPORTANTE: Verifica che 'correctAnswer' sia ESATTAMENTE uguale a una delle options!",
+                    category, difficulty, difficultyContext
+            );
+        }
+// ========== TRUE_FALSE: Prompt migliorato ==========
+        else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei il presentatore di un quiz televisivo.\n" +
+                            "CATEGORIA: %s\n" +
+                            "LIVELLO: %s (%s)\n\n" +
+                            "Genera UNA domanda VERO/FALSO.\n\n" +
+                            "REGOLE RIGIDE:\n" +
+                            "1. La domanda deve avere risposta oggettiva (non opinioni)\n" +
+                            "2. La risposta deve essere verificabile\n" +
+                            "3. 'options' deve essere ESATTAMENTE [\"VERO\", \"FALSO\"]\n" +
+                            "4. 'correctAnswer' deve essere \"VERO\" o \"FALSO\"\n" +
+                            "5. NON inventare fatti inesistenti\n\n" +
+                            "ESEMPIO VALIDO:\n" +
+                            "{\n" +
+                            "  \"question\": \"Il Sole è una stella.\",\n" +
+                            "  \"options\": [\"VERO\", \"FALSO\"],\n" +
+                            "  \"correctAnswer\": \"VERO\",\n" +
+                            "  \"type\": \"TRUE_FALSE\"\n" +
+                            "}\n\n" +
+                            "Rispondi SOLO con JSON valido (NO markdown).",
+                    category, difficulty, difficultyContext
+            );
+        }
+// ========== CHRONO ==========
+        else if ("CHRONO".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei il presentatore di un quiz televisivo.\n" +
+                            "CATEGORIA: %s\n" +
+                            "LIVELLO: %s (%s)\n\n" +
+                            "Genera UNA domanda su un ANNO storico.\n\n" +
+                            "REGOLE:\n" +
+                            "1. La domanda deve chiedere l'anno di un evento storico\n" +
+                            "2. L'anno deve essere verificabile\n" +
+                            "3. 'correctAnswer' deve essere un anno (es: \"1989\")\n" +
+                            "4. 'options' deve essere null\n\n" +
+                            "ESEMPIO:\n" +
+                            "{\n" +
+                            "  \"question\": \"In che anno è caduto il muro di Berlino?\",\n" +
+                            "  \"options\": null,\n" +
+                            "  \"correctAnswer\": \"1989\",\n" +
+                            "  \"type\": \"CHRONO\"\n" +
+                            "}\n\n" +
+                            "Rispondi SOLO con JSON valido (NO markdown).",
+                    category, difficulty, difficultyContext
+            );
+        } else {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria %s di tipo %s.\n" +
                             "LIVELLO DI DIFFICOLTÀ: %s (%s).\n" +
@@ -127,7 +202,6 @@ public class QuestionGeneratorService {
                     category, type, difficulty, difficultyContext, type
             );
         }
-
         Map<String, Object> request = new HashMap<>();
         request.put("model", "llama-3.3-70b-versatile");
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
@@ -157,8 +231,12 @@ public class QuestionGeneratorService {
             // Valida JSON
             try {
                 JSONObject jsonObj = new JSONObject(cleanedJson);
-
-                // Se IMAGE_BLUR, cerca immagine su TMDB
+                if ("QUIZ".equalsIgnoreCase(type) || "TRUE_FALSE".equalsIgnoreCase(type)) {
+                    if (!validateQuizJson(jsonObj)) {
+                        System.err.println("⚠️ Domanda non valida, uso fallback");
+                        return getFallbackJson(type);
+                    }
+                }
                 if ("IMAGE_BLUR".equalsIgnoreCase(type) && jsonObj.has("correctAnswer")) {
                     String celebrity = jsonObj.getString("correctAnswer");
 
@@ -211,6 +289,22 @@ public class QuestionGeneratorService {
                 iterator.remove();
             }
         }
+    }
+
+    private boolean validateQuizJson(JSONObject jsonObj) {
+        String correctAnswer = jsonObj.getString("correctAnswer");
+        JSONArray options = jsonObj.getJSONArray("options");
+
+        for (int i = 0; i < options.length(); i++) {
+            if (options.getString(i).equals(correctAnswer)) {
+                return true; // ✅ Valido
+            }
+        }
+
+        System.err.println("❌ VALIDAZIONE FALLITA!");
+        System.err.println("Risposta: " + correctAnswer);
+        System.err.println("Opzioni: " + options);
+        return false; // ❌ Non valido
     }
 
     private String cleanAiJson(String content) {
@@ -292,14 +386,93 @@ public class QuestionGeneratorService {
             return fallbackJson;
 
         } else if ("QUIZ".equalsIgnoreCase(type)) {
-            return """
-                    {
-                        "question": "Qual è la capitale dell'Italia?",
-                        "options": ["Roma", "Milano", "Napoli", "Firenze"],
-                        "correctAnswer": "Roma",
-                        "type": "QUIZ"
-                    }
-                    """;
+            // 🔥 FALLBACK SICURI con 10+ domande verificate
+            String[] safeQuizFallbacks = {
+                    """
+                {
+                    "question": "Qual è la capitale dell'Italia?",
+                    "options": ["Roma", "Milano", "Napoli", "Firenze"],
+                    "correctAnswer": "Roma",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Quanti continenti ci sono sulla Terra?",
+                    "options": ["5", "6", "7", "8"],
+                    "correctAnswer": "7",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Chi ha dipinto la Gioconda?",
+                    "options": ["Leonardo da Vinci", "Michelangelo", "Raffaello", "Caravaggio"],
+                    "correctAnswer": "Leonardo da Vinci",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Qual è il pianeta più grande del sistema solare?",
+                    "options": ["Giove", "Saturno", "Terra", "Marte"],
+                    "correctAnswer": "Giove",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "In quale anno è iniziata la Seconda Guerra Mondiale?",
+                    "options": ["1939", "1940", "1941", "1938"],
+                    "correctAnswer": "1939",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Chi ha scritto 'I Promessi Sposi'?",
+                    "options": ["Alessandro Manzoni", "Dante Alighieri", "Giovanni Verga", "Italo Calvino"],
+                    "correctAnswer": "Alessandro Manzoni",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Qual è l'oceano più grande?",
+                    "options": ["Pacifico", "Atlantico", "Indiano", "Artico"],
+                    "correctAnswer": "Pacifico",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Quanti lati ha un esagono?",
+                    "options": ["6", "5", "7", "8"],
+                    "correctAnswer": "6",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Chi ha inventato il telefono?",
+                    "options": ["Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "Guglielmo Marconi"],
+                    "correctAnswer": "Alexander Graham Bell",
+                    "type": "QUIZ"
+                }
+                """,
+                    """
+                {
+                    "question": "Qual è la montagna più alta del mondo?",
+                    "options": ["Monte Everest", "K2", "Monte Bianco", "Kilimanjaro"],
+                    "correctAnswer": "Monte Everest",
+                    "type": "QUIZ"
+                }
+                """
+            };
+
+            String fallbackJson = safeQuizFallbacks[new Random().nextInt(safeQuizFallbacks.length)];
+            System.out.println("🔄 Uso fallback QUIZ sicuro");
+            return fallbackJson;
         } else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
             return """
                     {
