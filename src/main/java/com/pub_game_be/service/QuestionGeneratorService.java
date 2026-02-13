@@ -232,7 +232,7 @@ public class QuestionGeneratorService {
             try {
                 JSONObject jsonObj = new JSONObject(cleanedJson);
                 if ("QUIZ".equalsIgnoreCase(type) || "TRUE_FALSE".equalsIgnoreCase(type)) {
-                    if (!validateQuizJson(jsonObj)) {
+                    if (!validateQuizJson(jsonObj, type)) {
                         System.err.println("⚠️ Domanda non valida, uso fallback");
                         return getFallbackJson(type);
                     }
@@ -291,20 +291,63 @@ public class QuestionGeneratorService {
         }
     }
 
-    private boolean validateQuizJson(JSONObject jsonObj) {
-        String correctAnswer = jsonObj.getString("correctAnswer");
-        JSONArray options = jsonObj.getJSONArray("options");
-
-        for (int i = 0; i < options.length(); i++) {
-            if (options.getString(i).equals(correctAnswer)) {
-                return true; // ✅ Valido
+    private boolean validateQuizJson(JSONObject jsonObj, String type) {
+        try {
+            if (!jsonObj.has("correctAnswer") || !jsonObj.has("options")) {
+                System.err.println("❌ Manca correctAnswer o options");
+                return false;
             }
-        }
 
-        System.err.println("❌ VALIDAZIONE FALLITA!");
-        System.err.println("Risposta: " + correctAnswer);
-        System.err.println("Opzioni: " + options);
-        return false; // ❌ Non valido
+            String correctAnswer = jsonObj.getString("correctAnswer");
+            JSONArray options = jsonObj.getJSONArray("options");
+
+            if ("TRUE_FALSE".equalsIgnoreCase(type)) {
+                if (options.length() != 2) {
+                    System.err.println("❌ TRUE_FALSE deve avere 2 opzioni");
+                    return false;
+                }
+                boolean hasVero = false;
+                boolean hasFalso = false;
+                for (int i = 0; i < options.length(); i++) {
+                    String opt = options.getString(i);
+                    if ("VERO".equals(opt)) hasVero = true;
+                    if ("FALSO".equals(opt)) hasFalso = true;
+                }
+
+                if (!hasVero || !hasFalso) {
+                    System.err.println("❌ TRUE_FALSE deve avere opzioni [VERO, FALSO]");
+                    return false;
+                }
+
+                if (!"VERO".equals(correctAnswer) && !"FALSO".equals(correctAnswer)) {
+                    System.err.println("❌ TRUE_FALSE correctAnswer deve essere VERO o FALSO");
+                    System.err.println("Trovato: " + correctAnswer);
+                    return false;
+                }
+
+                return true;
+            }
+
+            boolean found = false;
+            for (int i = 0; i < options.length(); i++) {
+                if (options.getString(i).equals(correctAnswer)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.err.println("❌ VALIDAZIONE FALLITA!");
+                System.err.println("Risposta corretta: " + correctAnswer);
+                System.err.println("Opzioni: " + options);
+                return false;
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore validazione: " + e.getMessage());
+            return false;
+        }
     }
 
     private String cleanAiJson(String content) {
