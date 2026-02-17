@@ -28,7 +28,7 @@ public class AppleMusicCuratorService {
             "Gianna Nannini", "Renato Zero", "Claudio Baglioni",
 
             // Pop contemporaneo
-            "Ultimo", "Blanco", "Mahmood", "Elodie", "Annalisa",
+            "Ultimo", "Mahmood", "Elodie", "Annalisa",
             "Nek", "Emma Marrone", "Alessandra Amoroso",
 
             // Dance/Rap italiano
