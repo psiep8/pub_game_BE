@@ -84,33 +84,39 @@ public class QuestionGeneratorService {
                     : String.join(", ", recentCelebrities);
 
             prompt = String.format(
-                    "Sei il presentatore di un quiz televisivo basato sul riconoscimento visivo.\n" +
+                    "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
                             "LIVELLO: %s (%s)\n\n" +
-                            "REGOLE DI SELEZIONE:\n" +
-                            "1. Scegli UNA celebrità DIVERSA ogni volta\n" +
-                            "2. NON USARE QUESTI (già usciti): %s\n" +
-                            "3. PREFERENZA per personaggi ITALIANI (60%% italiani, 40%% internazionali)\n" +
-                            "4. Varia tra: attori, cantanti, sportivi, registi, conduttori TV\n" +
-                            "5. USA SOLO personaggi presenti su TMDB/IMDb (cinema, TV, musica popolare)\n\n" +
-                            "ESEMPI ITALIANI livello MEDIO:\n" +
-                            "- Cinema: Alessandro Borghi, Luca Marinelli, Jasmine Trinca, Valeria Golino, Elio Germano\n" +
-                            "- Musica: Mahmood, Blanco, Elodie, Annalisa, Giorgia, Tiziano Ferro\n" +
-                            "- Sport famosi: Francesco Totti, Valentino Rossi (se hanno apparizioni TV/film)\n" +
-                            "- TV: Alessandro Cattelan, Fabio Fazio, Geppi Cucciari\n\n" +
-                            "ESEMPI INTERNAZIONALI livello MEDIO:\n" +
-                            "- Jake Gyllenhaal, Margot Robbie, Zendaya, Pedro Pascal, Oscar Isaac, Ryan Gosling, Emma Stone\n\n" +
-                            "Rispondi SOLO con JSON valido (NO markdown, NO testo extra):\n" +
+                            "⚠️ REGOLE CRITICHE - SOLO CELEBRITÀ ULTRA-FAMOSE:\n" +
+                            "1. USA SOLO personaggi ICONICI conosciuti da TUTTI\n" +
+                            "2. NON usare personaggi di nicchia, emergenti o poco noti\n" +
+                            "3. PREFERENZA ASSOLUTA per:\n" +
+                            "   - Cinema: attori/attrici con Oscar, Golden Globe, film blockbuster\n" +
+                            "   - Musica: artisti multi-platino, premi Grammy/MTV\n" +
+                            "   - Sport: campioni mondiali/olimpici, leggende dello sport\n" +
+                            "   - TV: conduttori storici prime-time\n\n" +
+                            "4. NON USARE QUESTI (già usciti): %s\n\n" +
+                            "ESEMPI ITALIANI ACCETTABILI:\n" +
+                            "- Cinema: Sophia Loren, Roberto Benigni, Monica Bellucci, Pierfrancesco Favino\n" +
+                            "- Musica: Laura Pausini, Eros Ramazzotti, Vasco Rossi, Ligabue, Zucchero\n" +
+                            "- Sport: Francesco Totti, Alessandro Del Piero, Valentino Rossi\n" +
+                            "- TV: Gerry Scotti, Maria De Filippi, Paolo Bonolis\n\n" +
+                            "ESEMPI INTERNAZIONALI ACCETTABILI:\n" +
+                            "- Cinema: Tom Cruise, Brad Pitt, Leonardo DiCaprio, Meryl Streep, Angelina Jolie\n" +
+                            "- Musica: Michael Jackson, Madonna, Beyoncé, Ed Sheeran, Taylor Swift\n" +
+                            "- Sport: Cristiano Ronaldo, Lionel Messi, LeBron James, Roger Federer\n\n" +
+                            "⚠️ ESEMPI DA EVITARE (troppo di nicchia):\n" +
+                            "- Attori di serie TV minori o film indie\n" +
+                            "- Cantanti emergenti o con 1-2 hit\n" +
+                            "- Personaggi social/influencer\n" +
+                            "- Sportivi senza titoli mondiali/olimpici\n\n" +
+                            "Rispondi SOLO con JSON:\n" +
                             "{\n" +
                             "  \"question\": \"Chi è questa persona?\",\n" +
                             "  \"correctAnswer\": \"Nome Completo Esatto\",\n" +
                             "  \"type\": \"IMAGE_BLUR\",\n" +
                             "  \"options\": null\n" +
-                            "}\n\n" +
-                            "IMPORTANTE:\n" +
-                            "- Usa il nome COMPLETO esatto (es: 'Leonardo DiCaprio', non 'Leo DiCaprio')\n" +
-                            "- Verifica che sia una persona reale con presenza su TMDB\n" +
-                            "- Non inventare nomi o usare persone non famose",
+                            "}",
                     category, difficulty, difficultyContext, recentList
             );
         }
