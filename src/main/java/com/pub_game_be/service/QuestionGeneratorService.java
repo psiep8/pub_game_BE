@@ -121,19 +121,22 @@ public class QuestionGeneratorService {
             );
         }
         // ========== TRUE_FALSE con explanation ==========
-        else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
+        if ("TRUE_FALSE".equalsIgnoreCase(type)) {
+            boolean shouldBeTrue = new Random().nextBoolean();
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
                             "LIVELLO: %s (%s)\n\n" +
                             "Genera UNA domanda VERO/FALSO.\n\n" +
-                            "REGOLE RIGIDE:\n" +
-                            "1. La domanda deve avere risposta oggettiva (non opinioni)\n" +
-                            "2. La risposta deve essere verificabile\n" +
-                            "3. 'options' deve essere ESATTAMENTE [\"VERO\", \"FALSO\"]\n" +
-                            "4. 'correctAnswer' deve essere \"VERO\" o \"FALSO\"\n" +
-                            "5. NON inventare fatti inesistenti\n" +
-                            "6. Se la risposta corretta è \"FALSO\", aggiungi campo 'explanation' con la motivazione\n\n" +
+                            "⚠️ REGOLA CRITICA:\n" +
+                            "La risposta corretta DEVE essere: %s\n\n" +
+                            "REGOLE:\n" +
+                            "1. La domanda deve avere risposta OGGETTIVA\n" +
+                            "2. La risposta deve essere VERIFICABILE\n" +
+                            "3. 'options' = [\"VERO\", \"FALSO\"]\n" +
+                            "4. 'correctAnswer' = \"%s\"\n" +
+                            "5. NON inventare fatti\n" +
+                            "6. Se la risposta è \"FALSO\", DEVI aggiungere 'explanation'\n\n" +
                             "ESEMPIO VERO:\n" +
                             "{\n" +
                             "  \"question\": \"Il Sole è una stella.\",\n" +
@@ -141,7 +144,7 @@ public class QuestionGeneratorService {
                             "  \"correctAnswer\": \"VERO\",\n" +
                             "  \"type\": \"TRUE_FALSE\"\n" +
                             "}\n\n" +
-                            "ESEMPIO FALSO (con motivazione):\n" +
+                            "ESEMPIO FALSO:\n" +
                             "{\n" +
                             "  \"question\": \"La Torre di Pisa si trova a Firenze.\",\n" +
                             "  \"options\": [\"VERO\", \"FALSO\"],\n" +
@@ -149,12 +152,12 @@ public class QuestionGeneratorService {
                             "  \"explanation\": \"La Torre di Pisa si trova a Pisa, non a Firenze.\",\n" +
                             "  \"type\": \"TRUE_FALSE\"\n" +
                             "}\n\n" +
-                            "IMPORTANTE:\n" +
-                            "- Se correctAnswer è \"FALSO\", DEVI includere 'explanation'\n" +
-                            "- La spiegazione deve essere breve (1-2 frasi) e chiara\n" +
-                            "- Spiega perché l'affermazione è falsa e qual è la verità\n\n" +
                             "Rispondi SOLO con JSON valido (NO markdown).",
-                    category, difficulty, difficultyContext
+                    category,
+                    difficulty,
+                    difficultyContext,
+                    shouldBeTrue ? "VERO" : "FALSO",  // Forza la risposta
+                    shouldBeTrue ? "VERO" : "FALSO"
             );
         }
         // ========== QUIZ con validazione ==========
