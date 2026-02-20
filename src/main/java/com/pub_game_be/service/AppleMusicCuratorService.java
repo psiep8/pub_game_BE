@@ -5,7 +5,7 @@ import com.pub_game_be.dto.AppleMusicTrack;
 import com.pub_game_be.dto.MusicTrackDto;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -20,50 +20,58 @@ public class AppleMusicCuratorService {
     private final Random random = new Random();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 🇮🇹 ARTISTI ITALIANI ICONICI (70%)
+    // 🇮🇹 ARTISTI ITALIANI ULTRA-FAMOSI (70%)
     private static final List<String> ITALIAN_ARTISTS = List.of(
-            // Classici leggendari
+            // Leggende assolute
             "Vasco Rossi", "Ligabue", "Zucchero", "Lucio Battisti",
             "Eros Ramazzotti", "Laura Pausini", "Tiziano Ferro",
             "Gianna Nannini", "Renato Zero", "Claudio Baglioni",
+            "Lucio Dalla", "Adriano Celentano", "Domenico Modugno",
 
-            // Pop contemporaneo
-            "Ultimo", "Blanco", "Mahmood", "Elodie", "Annalisa",
-            "Nek", "Emma Marrone", "Alessandra Amoroso",
+            // Pop contemporaneo MAINSTREAM
+            "Marco Mengoni", "Giorgia", "Elisa", "Alessandra Amoroso",
+            "Emma Marrone", "Annalisa", "Elodie", "Mahmood",
 
-            // Dance/Rap italiano
-            "Gabry Ponte", "Gigi D'Agostino", "Eiffel 65",
-            "Fedez", "J-Ax", "Marracash", "Ghali",
+            // Sanremo & Radio
+            "Max Pezzali", "883", "Nek", "Subsonica",
 
-            // Sanremo & Icons
-            "Giorgia", "Elisa", "Marco Mengoni", "Alessandra Amoroso",
-            "Max Pezzali", "883", "Rocco Hunt", "Boomdabash"
+            // Dance italiana ICONICA
+            "Gigi D'Agostino", "Gabry Ponte", "Eiffel 65"
     );
 
-    // 🌍 ARTISTI INTERNAZIONALI ICONICI (30%)
+    // 🌍 ARTISTI INTERNAZIONALI ULTRA-FAMOSI (30%)
     private static final List<String> INTERNATIONAL_ARTISTS = List.of(
-            // Pop/Rock Legends
+            // Leggende immortali
             "Queen", "The Beatles", "Michael Jackson", "Madonna",
+            "ABBA", "Whitney Houston", "Celine Dion",
+
+            // Rock iconico
             "Coldplay", "U2", "Bon Jovi", "The Rolling Stones",
+            "Eagles", "Guns N' Roses", "Nirvana", "Oasis",
+            "Led Zeppelin", "Pink Floyd", "AC/DC",
 
-            // Pop moderno
-            "The Weeknd", "Ed Sheeran", "Adele", "Bruno Mars",
-            "Taylor Swift", "Ariana Grande", "Justin Bieber",
+            // Pop MONDIALE
+            "Ed Sheeran", "Adele", "Bruno Mars", "Taylor Swift",
+            "The Weeknd", "Ariana Grande", "Justin Timberlake",
+            "Lady Gaga", "Beyoncé", "Rihanna",
 
-            // Dance/Electronic
+            // Dance MAINSTREAM
             "Daft Punk", "David Guetta", "Calvin Harris", "Avicii",
-            "Martin Garrix", "The Chainsmokers",
+            "The Chainsmokers",
 
-            // Hip Hop/R&B
-            "Drake", "Eminem", "Rihanna", "Beyoncé", "Kanye West"
+            // Hip Hop ICONICO
+            "Eminem", "50 Cent", "Jay-Z", "Snoop Dogg"
     );
 
     public AppleMusicCuratorService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
+    /**
+     * 🎵 Ottieni canzone famosa - 70% italiana, 30% internazionale
+     */
     public MusicTrackDto getFamousSong() {
-        boolean italian = random.nextDouble() < 0.7; // 70% italiane
+        boolean italian = random.nextDouble() < 0.7;
         System.out.println("🎵 Selezione: " + (italian ? "🇮🇹 ITALIANA" : "🌍 INTERNAZIONALE"));
         return italian ? getItalianSong() : getInternationalSong();
     }
@@ -84,16 +92,17 @@ public class AppleMusicCuratorService {
 
     /**
      * 🔥 Cerca TOP SONG (più famosa) dell'artista
+     * Ordina per popolarità e prende la prima canzone disponibile
      */
     private MusicTrackDto searchTopSongByArtist(String artist, String type) {
         try {
             String query = URLEncoder.encode(artist, StandardCharsets.UTF_8);
 
-            // 🎯 Ordina per POPULARITY (le canzoni più famose vengono prima)
+            // 🎯 Cerca con limite 50 per avere più scelta
             String url = API_URL + "?term=" + query +
-                    "&entity=song&limit=50&sort=popularity";
+                    "&entity=song&limit=50&country=IT";
 
-            System.out.println("🔍 Searching: " + artist);
+            System.out.println("🔍 Searching Apple Music: " + artist);
 
             String rawJson = restTemplate.getForObject(url, String.class);
             AppleMusicResponse response = objectMapper.readValue(rawJson, AppleMusicResponse.class);
@@ -103,18 +112,32 @@ public class AppleMusicCuratorService {
                 return getFallbackSong(type);
             }
 
-            // 🔥 Filtra solo canzoni CON PREVIEW
-            List<AppleMusicTrack> tracksWithPreview = response.results.stream()
+            // 🔥 FILTRA:
+            // 1. Solo canzoni CON PREVIEW
+            // 2. Solo canzoni dell'artista cercato (no featuring/compilation)
+            // 3. Preferenza per anno >= 1970 (più riconoscibili)
+            List<AppleMusicTrack> validTracks = response.results.stream()
                     .filter(t -> t.previewUrl != null && !t.previewUrl.isEmpty())
+                    .filter(t -> t.artistName != null &&
+                            t.artistName.toLowerCase().contains(artist.toLowerCase().split(" ")[0]))
+                    .filter(t -> {
+                        if (t.releaseDate == null || t.releaseDate.length() < 4) return true;
+                        try {
+                            int year = Integer.parseInt(t.releaseDate.substring(0, 4));
+                            return year >= 1970; // Solo dal 1970 in poi
+                        } catch (Exception e) {
+                            return true;
+                        }
+                    })
                     .toList();
 
-            if (tracksWithPreview.isEmpty()) {
-                System.out.println("⚠️ No preview for " + artist + ", using fallback");
+            if (validTracks.isEmpty()) {
+                System.out.println("⚠️ No valid tracks for " + artist + ", using fallback");
                 return getFallbackSong(type);
             }
 
-            // 🎯 PRENDI LA PRIMA (più popolare) con preview
-            AppleMusicTrack track = tracksWithPreview.get(0);
+            // 🎯 PRENDI LA PRIMA (più popolare)
+            AppleMusicTrack track = validTracks.get(0);
 
             MusicTrackDto dto = new MusicTrackDto();
             dto.id = String.valueOf(track.trackId);
@@ -127,47 +150,87 @@ public class AppleMusicCuratorService {
                     ? track.artworkUrl100.replace("100x100", "600x600")
                     : "";
 
-            dto.year = track.releaseDate != null && track.releaseDate.length() >= 4
-                    ? Integer.parseInt(track.releaseDate.substring(0, 4))
-                    : null;
+            // Anno
+            if (track.releaseDate != null && track.releaseDate.length() >= 4) {
+                try {
+                    dto.year = Integer.parseInt(track.releaseDate.substring(0, 4));
+                } catch (Exception e) {
+                    dto.year = null;
+                }
+            }
 
+            dto.duration = 30;
             dto.type = type;
             dto.source = "apple-music";
 
             System.out.println("✅ " +
                     (type.equals("italian") ? "🇮🇹" : "🌍") +
-                    " " + dto.title + " - " + dto.artist);
+                    " " + dto.title + " - " + dto.artist +
+                    (dto.year != null ? " (" + dto.year + ")" : ""));
 
             return dto;
 
         } catch (Exception e) {
             System.err.println("❌ Apple Music error for " + artist + ": " + e.getMessage());
+            e.printStackTrace();
             return getFallbackSong(type);
         }
     }
 
+    /**
+     * 🚑 FALLBACK con hit ICONICHE garantite
+     */
     private MusicTrackDto getFallbackSong(String type) {
         MusicTrackDto dto = new MusicTrackDto();
         dto.source = "fallback";
         dto.type = type;
+        dto.duration = 30;
 
         if ("italian".equals(type)) {
-            dto.id = "fallback_ita_1";
-            dto.title = "Volare";
-            dto.artist = "Domenico Modugno";
-            dto.previewUrl = "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/69/f7/a7/69f7a7a6-0f4c-9d0e-3c5a-a5a6f5e3d3f3/mzaf_12345.plus.aac.p.m4a";
-            dto.albumCover = "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/volare.jpg/600x600bb.jpg";
-            dto.year = 1958;
+            // Fallback italiani ICONICI
+            String[][] italianHits = {
+                    {"fallback_ita_1", "Albachiara", "Vasco Rossi", "1979"},
+                    {"fallback_ita_2", "Sally", "Vasco Rossi", "1996"},
+                    {"fallback_ita_3", "Volare", "Domenico Modugno", "1958"},
+                    {"fallback_ita_4", "La solitudine", "Laura Pausini", "1993"},
+                    {"fallback_ita_5", "Azzurro", "Adriano Celentano", "1968"},
+                    {"fallback_ita_6", "Un'emozione per sempre", "Eros Ramazzotti", "2003"},
+                    {"fallback_ita_7", "Caruso", "Lucio Dalla", "1986"}
+            };
+
+            String[] hit = italianHits[random.nextInt(italianHits.length)];
+            dto.id = hit[0];
+            dto.title = hit[1];
+            dto.artist = hit[2];
+            dto.year = Integer.parseInt(hit[3]);
+            dto.previewUrl = ""; // Frontend userà Spotify come fallback
+            dto.albumCover = "";
+
         } else {
-            dto.id = "fallback_int_1";
-            dto.title = "Bohemian Rhapsody";
-            dto.artist = "Queen";
-            dto.previewUrl = "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/5b/2a/7a/5b2a7a3e-3cfa-7f08-f6b4-dc43d4a2c6b5/mzaf_11897835066034327923.plus.aac.p.m4a";
-            dto.albumCover = "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/queen.jpg/600x600bb.jpg";
-            dto.year = 1975;
+            // Fallback internazionali ICONICI
+            String[][] internationalHits = {
+                    {"fallback_int_1", "Bohemian Rhapsody", "Queen", "1975"},
+                    {"fallback_int_2", "Billie Jean", "Michael Jackson", "1982"},
+                    {"fallback_int_3", "Thriller", "Michael Jackson", "1982"},
+                    {"fallback_int_4", "Like a Prayer", "Madonna", "1989"},
+                    {"fallback_int_5", "Hotel California", "Eagles", "1976"},
+                    {"fallback_int_6", "Sweet Child O' Mine", "Guns N' Roses", "1987"},
+                    {"fallback_int_7", "Smells Like Teen Spirit", "Nirvana", "1991"},
+                    {"fallback_int_8", "Wonderwall", "Oasis", "1995"},
+                    {"fallback_int_9", "Dancing Queen", "ABBA", "1976"},
+                    {"fallback_int_10", "Imagine", "John Lennon", "1971"}
+            };
+
+            String[] hit = internationalHits[random.nextInt(internationalHits.length)];
+            dto.id = hit[0];
+            dto.title = hit[1];
+            dto.artist = hit[2];
+            dto.year = Integer.parseInt(hit[3]);
+            dto.previewUrl = ""; // Frontend userà Spotify come fallback
+            dto.albumCover = "";
         }
 
-        System.out.println("🚑 FALLBACK: " + dto.title + " - " + dto.artist);
+        System.out.println("🚑 FALLBACK: " + dto.title + " - " + dto.artist + " (" + dto.year + ")");
         return dto;
     }
 }
