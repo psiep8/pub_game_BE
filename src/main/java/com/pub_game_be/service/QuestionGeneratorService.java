@@ -25,11 +25,11 @@ public class QuestionGeneratorService {
     private final TMDBImageService tmdbImageService;
     private final AppleMusicCuratorService appleMusicCuratorService;
 
-    // Cache per evitare ripetizioni
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService, AppleMusicCuratorService appleMusicCuratorService) {
+    public QuestionGeneratorService(TMDBImageService tmdbImageService,
+            AppleMusicCuratorService appleMusicCuratorService) {
         this.tmdbImageService = tmdbImageService;
         this.appleMusicCuratorService = appleMusicCuratorService;
     }
@@ -37,9 +37,8 @@ public class QuestionGeneratorService {
     public String generateQuestionJson(String category, String type, String difficulty) {
         RestTemplate restTemplate = new RestTemplate();
 
-        // ========== ROULETTE ==========
         if ("ROULETTE".equalsIgnoreCase(type)) {
-            String[] colors = {"ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"};
+            String[] colors = { "ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO" };
             String winningColor = colors[new Random().nextInt(colors.length)];
 
             JSONObject response = new JSONObject();
@@ -49,21 +48,16 @@ public class QuestionGeneratorService {
             response.put("options", new JSONArray(colors));
             response.put("payload", JSONObject.NULL);
 
-            System.out.println("🎰 ROULETTE generata - Colore vincente: " + winningColor);
             return response.toString();
         }
 
-        // ========== WHEEL_OF_FORTUNE ==========
         if ("WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
                 || "WHEEL_FORTUNE".equalsIgnoreCase(type)
                 || "PROVERB".equalsIgnoreCase(type)) {
             String proverb = pickRandomProverb();
-            System.out.println("🎰 WHEEL_FORTUNE generato");
-            System.out.println("📜 Proverbio: " + proverb);
             return proverb;
         }
 
-        // ========== MUSIC ==========
         if ("MUSIC".equalsIgnoreCase(type)) {
             return generateMusicQuestion();
         }
@@ -77,7 +71,6 @@ public class QuestionGeneratorService {
 
         String prompt;
 
-        // ========== IMAGE_BLUR ==========
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
             String recentList = recentCelebrities.isEmpty()
                     ? "nessuno"
@@ -117,10 +110,8 @@ public class QuestionGeneratorService {
                             "  \"type\": \"IMAGE_BLUR\",\n" +
                             "  \"options\": null\n" +
                             "}",
-                    category, difficulty, difficultyContext, recentList
-            );
+                    category, difficulty, difficultyContext, recentList);
         }
-        // ========== TRUE_FALSE con explanation ==========
         if ("TRUE_FALSE".equalsIgnoreCase(type)) {
             boolean shouldBeTrue = new Random().nextBoolean();
             prompt = String.format(
@@ -156,12 +147,9 @@ public class QuestionGeneratorService {
                     category,
                     difficulty,
                     difficultyContext,
-                    shouldBeTrue ? "VERO" : "FALSO",  // Forza la risposta
-                    shouldBeTrue ? "VERO" : "FALSO"
-            );
-        }
-        // ========== QUIZ con validazione ==========
-        else if ("QUIZ".equalsIgnoreCase(type)) {
+                    shouldBeTrue ? "VERO" : "FALSO",
+                    shouldBeTrue ? "VERO" : "FALSO");
+        } else if ("QUIZ".equalsIgnoreCase(type)) {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
@@ -182,11 +170,8 @@ public class QuestionGeneratorService {
                             "}\n\n" +
                             "Rispondi SOLO con JSON valido (NO markdown, NO testo extra).\n" +
                             "IMPORTANTE: Verifica che 'correctAnswer' sia ESATTAMENTE uguale a una delle options!",
-                    category, difficulty, difficultyContext
-            );
-        }
-        // ========== CHRONO ==========
-        else if ("CHRONO".equalsIgnoreCase(type)) {
+                    category, difficulty, difficultyContext);
+        } else if ("CHRONO".equalsIgnoreCase(type)) {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
@@ -205,8 +190,7 @@ public class QuestionGeneratorService {
                             "  \"type\": \"CHRONO\"\n" +
                             "}\n\n" +
                             "Rispondi SOLO con JSON valido (NO markdown).",
-                    category, difficulty, difficultyContext
-            );
+                    category, difficulty, difficultyContext);
         }
         if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
             prompt = String.format(
@@ -226,11 +210,8 @@ public class QuestionGeneratorService {
                             "  \"correctAnswer\": \"...\",\n" +
                             "  \"type\": \"ONE_VS_ONE\"\n" +
                             "}",
-                    category, difficulty, difficultyContext
-            );
-        }
-        // ========== Altro ==========
-        else {
+                    category, difficulty, difficultyContext);
+        } else {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria %s di tipo %s.\n" +
                             "LIVELLO DI DIFFICOLTÀ: %s (%s).\n" +
@@ -239,15 +220,13 @@ public class QuestionGeneratorService {
                             "- options: array di 4 stringhe (QUIZ), ['VERO','FALSO'] (TRUE_FALSE), null (CHRONO)\n" +
                             "- correctAnswer: risposta esatta o anno (CHRONO)\n" +
                             "- type: %s",
-                    category, type, difficulty, difficultyContext, type
-            );
+                    category, type, difficulty, difficultyContext, type);
         }
 
         Map<String, Object> request = new HashMap<>();
         request.put("model", "llama-3.3-70b-versatile");
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
 
-        // Temperature alta per IMAGE_BLUR = più varietà
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
             request.put("temperature", 1.3);
         } else {
@@ -265,23 +244,15 @@ public class QuestionGeneratorService {
             String rawContent = parseJsonResponse(response.getBody());
             String cleanedJson = cleanAiJson(rawContent);
 
-            System.out.println("=== AI Response for " + type + " ===");
-            System.out.println("RAW: " + rawContent);
-            System.out.println("CLEANED: " + cleanedJson);
-
-            // 🔥 VALIDA JSON
             try {
                 JSONObject jsonObj = new JSONObject(cleanedJson);
 
-                // 🔥 VALIDAZIONE per QUIZ e TRUE_FALSE
                 if ("QUIZ".equalsIgnoreCase(type) || "TRUE_FALSE".equalsIgnoreCase(type)) {
                     if (!validateQuizJson(jsonObj, type)) {
-                        System.err.println("⚠️ Domanda non valida, uso fallback");
                         return getFallbackJson(type);
                     }
                 }
 
-                // Se IMAGE_BLUR, cerca immagine su TMDB
                 if ("IMAGE_BLUR".equalsIgnoreCase(type) && jsonObj.has("correctAnswer")) {
                     String celebrity = jsonObj.getString("correctAnswer");
 
@@ -291,51 +262,35 @@ public class QuestionGeneratorService {
                         jsonObj.put("imageUrl", imageUrl);
                         addToRecentCelebrities(celebrity);
 
-                        System.out.println("✅ Celebrità: " + celebrity);
-                        System.out.println("🖼️ TMDB Image URL: " + imageUrl);
-                        System.out.println("📋 Cache recenti: " + recentCelebrities);
                     } else {
-                        System.out.println("⚠️ TMDB non ha immagine per: " + celebrity);
-                        System.out.println("🔄 Rigenerando domanda...");
                         return generateQuestionJson(category, type, difficulty);
                     }
 
                     cleanedJson = jsonObj.toString();
                 }
 
-                System.out.println("===================================");
                 return cleanedJson;
 
             } catch (Exception parseEx) {
-                System.err.println("❌ JSON non valido: " + parseEx.getMessage());
                 return getFallbackJson(type);
             }
 
         } catch (Exception e) {
-            System.err.println("❌ Errore chiamata Groq: " + e.getMessage());
-            e.printStackTrace();
             return getFallbackJson(type);
         }
     }
 
-    /**
-     * 🔍 Valida che la risposta corretta sia nelle opzioni
-     * Funziona per QUIZ e TRUE_FALSE
-     */
     private boolean validateQuizJson(JSONObject jsonObj, String type) {
         try {
             if (!jsonObj.has("correctAnswer") || !jsonObj.has("options")) {
-                System.err.println("❌ Manca correctAnswer o options");
                 return false;
             }
 
             String correctAnswer = jsonObj.getString("correctAnswer");
             JSONArray options = jsonObj.getJSONArray("options");
 
-            // 🔥 TRUE_FALSE: validazione specifica
             if ("TRUE_FALSE".equalsIgnoreCase(type)) {
                 if (options.length() != 2) {
-                    System.err.println("❌ TRUE_FALSE deve avere 2 opzioni");
                     return false;
                 }
 
@@ -343,31 +298,23 @@ public class QuestionGeneratorService {
                 boolean hasFalso = false;
                 for (int i = 0; i < options.length(); i++) {
                     String opt = options.getString(i);
-                    if ("VERO".equals(opt)) hasVero = true;
-                    if ("FALSO".equals(opt)) hasFalso = true;
+                    if ("VERO".equals(opt))
+                        hasVero = true;
+                    if ("FALSO".equals(opt))
+                        hasFalso = true;
                 }
 
                 if (!hasVero || !hasFalso) {
-                    System.err.println("❌ TRUE_FALSE deve avere opzioni [VERO, FALSO]");
                     return false;
                 }
 
                 if (!"VERO".equals(correctAnswer) && !"FALSO".equals(correctAnswer)) {
-                    System.err.println("❌ TRUE_FALSE correctAnswer deve essere VERO o FALSO");
                     return false;
-                }
-
-                // 🔥 Se correctAnswer è FALSO, verifica explanation
-                if ("FALSO".equals(correctAnswer)) {
-                    if (!jsonObj.has("explanation") || jsonObj.getString("explanation").isEmpty()) {
-                        System.err.println("⚠️ TRUE_FALSE con FALSO dovrebbe avere 'explanation'");
-                    }
                 }
 
                 return true;
             }
 
-            // 🔥 QUIZ: validazione standard
             boolean found = false;
             for (int i = 0; i < options.length(); i++) {
                 if (options.getString(i).equals(correctAnswer)) {
@@ -377,23 +324,16 @@ public class QuestionGeneratorService {
             }
 
             if (!found) {
-                System.err.println("❌ VALIDAZIONE FALLITA!");
-                System.err.println("Risposta corretta: " + correctAnswer);
-                System.err.println("Opzioni: " + options);
                 return false;
             }
 
             return true;
 
         } catch (Exception e) {
-            System.err.println("❌ Errore validazione: " + e.getMessage());
             return false;
         }
     }
 
-    /**
-     * Aggiunge celebrità alla cache
-     */
     private void addToRecentCelebrities(String celebrity) {
         recentCelebrities.add(celebrity);
 
@@ -407,7 +347,8 @@ public class QuestionGeneratorService {
     }
 
     private String cleanAiJson(String content) {
-        if (content == null) return "{}";
+        if (content == null)
+            return "{}";
 
         if (content.contains("```json")) {
             content = content.substring(content.indexOf("```json") + 7);
@@ -439,29 +380,29 @@ public class QuestionGeneratorService {
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
             String[] safeFallbacks = {
                     """
-                {
-                    "question": "Chi è questa persona?",
-                    "correctAnswer": "Leonardo DiCaprio",
-                    "type": "IMAGE_BLUR",
-                    "options": null
-                }
-                """,
+                            {
+                                "question": "Chi è questa persona?",
+                                "correctAnswer": "Leonardo DiCaprio",
+                                "type": "IMAGE_BLUR",
+                                "options": null
+                            }
+                            """,
                     """
-                {
-                    "question": "Chi è questa persona?",
-                    "correctAnswer": "Brad Pitt",
-                    "type": "IMAGE_BLUR",
-                    "options": null
-                }
-                """,
+                            {
+                                "question": "Chi è questa persona?",
+                                "correctAnswer": "Brad Pitt",
+                                "type": "IMAGE_BLUR",
+                                "options": null
+                            }
+                            """,
                     """
-                {
-                    "question": "Chi è questa persona?",
-                    "correctAnswer": "Tom Hanks",
-                    "type": "IMAGE_BLUR",
-                    "options": null
-                }
-                """
+                            {
+                                "question": "Chi è questa persona?",
+                                "correctAnswer": "Tom Hanks",
+                                "type": "IMAGE_BLUR",
+                                "options": null
+                            }
+                            """
             };
 
             String fallbackJson = safeFallbacks[new Random().nextInt(safeFallbacks.length)];
@@ -475,7 +416,6 @@ public class QuestionGeneratorService {
                     return obj.toString();
                 }
             } catch (Exception e) {
-                System.err.println("❌ Errore fallback TMDB: " + e.getMessage());
             }
 
             return fallbackJson;
@@ -483,100 +423,98 @@ public class QuestionGeneratorService {
         } else if ("QUIZ".equalsIgnoreCase(type)) {
             String[] safeQuizFallbacks = {
                     """
-                {
-                    "question": "Qual è la capitale dell'Italia?",
-                    "options": ["Roma", "Milano", "Napoli", "Firenze"],
-                    "correctAnswer": "Roma",
-                    "type": "QUIZ"
-                }
-                """,
+                            {
+                                "question": "Qual è la capitale dell'Italia?",
+                                "options": ["Roma", "Milano", "Napoli", "Firenze"],
+                                "correctAnswer": "Roma",
+                                "type": "QUIZ"
+                            }
+                            """,
                     """
-                {
-                    "question": "Quanti continenti ci sono sulla Terra?",
-                    "options": ["5", "6", "7", "8"],
-                    "correctAnswer": "7",
-                    "type": "QUIZ"
-                }
-                """,
+                            {
+                                "question": "Quanti continenti ci sono sulla Terra?",
+                                "options": ["5", "6", "7", "8"],
+                                "correctAnswer": "7",
+                                "type": "QUIZ"
+                            }
+                            """,
                     """
-                {
-                    "question": "Chi ha dipinto la Gioconda?",
-                    "options": ["Leonardo da Vinci", "Michelangelo", "Raffaello", "Caravaggio"],
-                    "correctAnswer": "Leonardo da Vinci",
-                    "type": "QUIZ"
-                }
-                """,
+                            {
+                                "question": "Chi ha dipinto la Gioconda?",
+                                "options": ["Leonardo da Vinci", "Michelangelo", "Raffaello", "Caravaggio"],
+                                "correctAnswer": "Leonardo da Vinci",
+                                "type": "QUIZ"
+                            }
+                            """,
                     """
-                {
-                    "question": "Qual è il pianeta più grande del sistema solare?",
-                    "options": ["Giove", "Saturno", "Terra", "Marte"],
-                    "correctAnswer": "Giove",
-                    "type": "QUIZ"
-                }
-                """,
+                            {
+                                "question": "Qual è il pianeta più grande del sistema solare?",
+                                "options": ["Giove", "Saturno", "Terra", "Marte"],
+                                "correctAnswer": "Giove",
+                                "type": "QUIZ"
+                            }
+                            """,
                     """
-                {
-                    "question": "In quale anno è iniziata la Seconda Guerra Mondiale?",
-                    "options": ["1939", "1940", "1941", "1938"],
-                    "correctAnswer": "1939",
-                    "type": "QUIZ"
-                }
-                """
+                            {
+                                "question": "In quale anno è iniziata la Seconda Guerra Mondiale?",
+                                "options": ["1939", "1940", "1941", "1938"],
+                                "correctAnswer": "1939",
+                                "type": "QUIZ"
+                            }
+                            """
             };
 
             String fallbackJson = safeQuizFallbacks[new Random().nextInt(safeQuizFallbacks.length)];
-            System.out.println("🔄 Uso fallback QUIZ sicuro");
             return fallbackJson;
 
         } else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
             String[] safeTrueFalseFallbacks = {
                     """
-            {
-                "question": "Il Sole è una stella.",
-                "options": ["VERO", "FALSO"],
-                "correctAnswer": "VERO",
-                "type": "TRUE_FALSE"
-            }
-            """,
+                            {
+                                "question": "Il Sole è una stella.",
+                                "options": ["VERO", "FALSO"],
+                                "correctAnswer": "VERO",
+                                "type": "TRUE_FALSE"
+                            }
+                            """,
                     """
-            {
-                "question": "La Torre di Pisa si trova a Firenze.",
-                "options": ["VERO", "FALSO"],
-                "correctAnswer": "FALSO",
-                "explanation": "La Torre di Pisa si trova a Pisa, non a Firenze.",
-                "type": "TRUE_FALSE"
-            }
-            """,
+                            {
+                                "question": "La Torre di Pisa si trova a Firenze.",
+                                "options": ["VERO", "FALSO"],
+                                "correctAnswer": "FALSO",
+                                "explanation": "La Torre di Pisa si trova a Pisa, non a Firenze.",
+                                "type": "TRUE_FALSE"
+                            }
+                            """,
                     """
-            {
-                "question": "L'acqua bolle a 100 gradi Celsius a livello del mare.",
-                "options": ["VERO", "FALSO"],
-                "correctAnswer": "VERO",
-                "type": "TRUE_FALSE"
-            }
-            """,
+                            {
+                                "question": "L'acqua bolle a 100 gradi Celsius a livello del mare.",
+                                "options": ["VERO", "FALSO"],
+                                "correctAnswer": "VERO",
+                                "type": "TRUE_FALSE"
+                            }
+                            """,
                     """
-            {
-                "question": "La Statua della Libertà si trova a Boston.",
-                "options": ["VERO", "FALSO"],
-                "correctAnswer": "FALSO",
-                "explanation": "La Statua della Libertà si trova a New York, non a Boston.",
-                "type": "TRUE_FALSE"
-            }
-            """,
+                            {
+                                "question": "La Statua della Libertà si trova a Boston.",
+                                "options": ["VERO", "FALSO"],
+                                "correctAnswer": "FALSO",
+                                "explanation": "La Statua della Libertà si trova a New York, non a Boston.",
+                                "type": "TRUE_FALSE"
+                            }
+                            """,
                     """
-            {
-                "question": "Il Colosseo si trova a Napoli.",
-                "options": ["VERO", "FALSO"],
-                "correctAnswer": "FALSO",
-                "explanation": "Il Colosseo si trova a Roma, non a Napoli.",
-                "type": "TRUE_FALSE"
-            }
-            """
+                            {
+                                "question": "Il Colosseo si trova a Napoli.",
+                                "options": ["VERO", "FALSO"],
+                                "correctAnswer": "FALSO",
+                                "explanation": "Il Colosseo si trova a Roma, non a Napoli.",
+                                "type": "TRUE_FALSE"
+                            }
+                            """
             };
 
             String fallbackJson = safeTrueFalseFallbacks[new Random().nextInt(safeTrueFalseFallbacks.length)];
-            System.out.println("🔄 Uso fallback TRUE_FALSE sicuro");
             return fallbackJson;
 
         } else if ("CHRONO".equalsIgnoreCase(type)) {
@@ -616,7 +554,7 @@ public class QuestionGeneratorService {
     }
 
     private String pickRandomProverb() {
-        String[] provs = new String[]{
+        String[] provs = new String[] {
                 "Chi dorme non piglia pesci",
                 "L'abito non fa il monaco",
                 "Chi va piano va sano e va lontano",
