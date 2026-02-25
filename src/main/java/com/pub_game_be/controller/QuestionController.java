@@ -1,4 +1,5 @@
 package com.pub_game_be.controller;
+
 import com.pub_game_be.domain.question.Question;
 import com.pub_game_be.repository.QuestionRepository;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ public class QuestionController {
     }
 
     @GetMapping("/category/{id}")
-    public List<Question> byCategory(@PathVariable Long id) {
+    public List<Question> byCategory(@PathVariable("id") Long id) {
         return repo.findByCategoryId(id);
     }
 

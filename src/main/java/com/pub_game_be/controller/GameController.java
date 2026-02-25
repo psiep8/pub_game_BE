@@ -1,4 +1,5 @@
 package com.pub_game_be.controller;
+
 import com.pub_game_be.domain.enums.GameStatus;
 import com.pub_game_be.domain.enums.GameType;
 import com.pub_game_be.domain.enums.RoundStatus;
@@ -28,11 +29,11 @@ public class GameController {
 
     // Costruttore completo per Dependency Injection
     public GameController(GameRepository gameRepo,
-                          GameRoundRepository gameRoundRepository,
-                          SimpleRoundService simpleRoundService,
-                          GameService gameService,
-                          QuestionGeneratorService questionGeneratorService,
-                          SimpMessagingTemplate messagingTemplate) {
+            GameRoundRepository gameRoundRepository,
+            SimpleRoundService simpleRoundService,
+            GameService gameService,
+            QuestionGeneratorService questionGeneratorService,
+            SimpMessagingTemplate messagingTemplate) {
         this.gameRepo = gameRepo;
         this.gameRoundRepository = gameRoundRepository;
         this.simpleRoundService = simpleRoundService;
@@ -54,10 +55,10 @@ public class GameController {
     }
 
     @GetMapping("/{gameId}/generate-ai-round")
-    public GameRound generateAiRound(@PathVariable Long gameId,
-                                     @RequestParam String category,
-                                     @RequestParam String type,
-                                     @RequestParam String difficulty) {
+    public GameRound generateAiRound(@PathVariable("gameId") Long gameId,
+            @RequestParam("category") String category,
+            @RequestParam("type") String type,
+            @RequestParam("difficulty") String difficulty) {
 
         String aiPayload = questionGeneratorService
                 .generateQuestionJson(category, type, difficulty);
@@ -76,11 +77,9 @@ public class GameController {
 
         // PAYLOAD (JSON STRING) - normalizziamo per WHEEL
         String normalizedPayload = aiPayload;
-        if (type != null && (
-                "WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
-                        || "WHEEL_FORTUNE".equalsIgnoreCase(type)
-                        || "PROVERB".equalsIgnoreCase(type)
-        )) {
+        if (type != null && ("WHEEL_OF_FORTUNE".equalsIgnoreCase(type)
+                || "WHEEL_FORTUNE".equalsIgnoreCase(type)
+                || "PROVERB".equalsIgnoreCase(type))) {
             normalizedPayload = normalizeWheelPayload(aiPayload);
         }
 
@@ -94,21 +93,23 @@ public class GameController {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + gameId,
-                savedRound
-        );
+                savedRound);
 
         return savedRound;
     }
 
     private String normalizeWheelPayload(String aiPayload) {
-        if (aiPayload == null) return new JSONObject().put("proverb", "").toString();
+        if (aiPayload == null)
+            return new JSONObject().put("proverb", "").toString();
         String p = aiPayload.trim();
 
-        // Try extracting the raw proverb text; this function returns null if nothing found
+        // Try extracting the raw proverb text; this function returns null if nothing
+        // found
         String raw = tryExtractRawProverb(p);
 
         if (raw == null) {
-            // As a last resort, if p looks like JSON try to extract 'question' or nested text
+            // As a last resort, if p looks like JSON try to extract 'question' or nested
+            // text
             if (p.startsWith("{")) {
                 try {
                     JSONObject obj = new JSONObject(p);
@@ -127,7 +128,8 @@ public class GameController {
         }
 
         // If still null, fallback to using the trimmed input as the proverb text
-        if (raw == null) raw = p;
+        if (raw == null)
+            raw = p;
 
         // Wrap into a valid JSON object so MySQL's JSON column accepts it
         JSONObject out = new JSONObject();
@@ -140,26 +142,30 @@ public class GameController {
      * Returns the raw proverb or null if not found.
      */
     private String tryExtractRawProverb(String p) {
-        if (p == null) return null;
+        if (p == null)
+            return null;
         String trimmed = p.trim();
 
         // 1) If it's a JSON object string, parse and look for common fields
         if (trimmed.startsWith("{")) {
             try {
                 JSONObject obj = new JSONObject(trimmed);
-                if (obj.has("proverb")) return obj.getString("proverb");
+                if (obj.has("proverb"))
+                    return obj.getString("proverb");
                 if (obj.has("payload")) {
                     Object nested = obj.get("payload");
                     String nestedStr = String.valueOf(nested).trim();
                     // If nested is JSON string, recurse
-                    if (nestedStr.startsWith("{")) return tryExtractRawProverb(nestedStr);
+                    if (nestedStr.startsWith("{"))
+                        return tryExtractRawProverb(nestedStr);
                     // else if nested likely plain string
                     return nestedStr;
                 }
                 if (obj.has("question")) {
                     String q = obj.getString("question");
                     String ext = extractProverbFromQuestionText(q);
-                    if (ext != null) return ext;
+                    if (ext != null)
+                        return ext;
                 }
             } catch (Exception ignored) {
             }
@@ -179,14 +185,16 @@ public class GameController {
 
         // 3) Try to extract quoted substring from plain question text
         String ext = extractProverbFromQuestionText(trimmed);
-        if (ext != null) return ext;
+        if (ext != null)
+            return ext;
 
         // 4) Not found
         return null;
     }
 
     private String extractProverbFromQuestionText(String text) {
-        if (text == null) return null;
+        if (text == null)
+            return null;
         String t = text.trim();
 
         // look for single quotes '...'
@@ -195,7 +203,8 @@ public class GameController {
             int second = t.indexOf('\'', first + 1);
             if (second > first) {
                 String inside = t.substring(first + 1, second).trim();
-                if (inside.length() > 3) return inside;
+                if (inside.length() > 3)
+                    return inside;
             }
         }
 
@@ -205,7 +214,8 @@ public class GameController {
             int second = t.indexOf('"', first + 1);
             if (second > first) {
                 String inside = t.substring(first + 1, second).trim();
-                if (inside.length() > 3) return inside;
+                if (inside.length() > 3)
+                    return inside;
             }
         }
 
@@ -218,10 +228,12 @@ public class GameController {
             if (end > start) {
                 String inside = t.substring(start, end).trim();
                 // strip quotes if present
-                if ((inside.startsWith("\"") && inside.endsWith("\"")) || (inside.startsWith("'") && inside.endsWith("'"))) {
+                if ((inside.startsWith("\"") && inside.endsWith("\""))
+                        || (inside.startsWith("'") && inside.endsWith("'"))) {
                     inside = inside.substring(1, inside.length() - 1);
                 }
-                if (inside.length() > 3) return inside;
+                if (inside.length() > 3)
+                    return inside;
             }
         }
 
@@ -230,8 +242,8 @@ public class GameController {
 
     @PostMapping("/{id}/round")
     public GameRound nextRound(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "EASY") String difficulty) {
+            @PathVariable("id") Long id,
+            @RequestParam(value = "difficulty", defaultValue = "EASY") String difficulty) {
         Game game = gameRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Gioco non trovato"));
 
@@ -244,7 +256,7 @@ public class GameController {
     }
 
     @GetMapping("/{gameId}/current-round")
-    public ResponseEntity<GameRound> getCurrentRound(@PathVariable Long gameId) {
+    public ResponseEntity<GameRound> getCurrentRound(@PathVariable("gameId") Long gameId) {
         return gameService.getCurrentRound(gameId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
