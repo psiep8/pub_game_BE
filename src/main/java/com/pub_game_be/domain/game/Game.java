@@ -1,7 +1,7 @@
 package com.pub_game_be.domain.game;
 
 import com.pub_game_be.domain.enums.GameStatus;
-import jakarta.persistence.*; // This covers @Entity, @Table, @Id, @GeneratedValue, etc.
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Game {
 
-    @Id // Now correctly using jakarta.persistence.Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

@@ -1,15 +1,15 @@
 package com.pub_game_be.domain.category;
 
-import jakarta.persistence.*; // Use jakarta for Spring Boot 3/4
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "category")
-@Data                       // Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor          // Required by JPA
-@AllArgsConstructor         // Useful for testing
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Category {
 
     @Id

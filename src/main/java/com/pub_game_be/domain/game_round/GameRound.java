@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "game_round")
-@Data                       // Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor          // Required by JPA
-@AllArgsConstructor         // Useful for testing
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class GameRound {
 
     @Id
@@ -33,7 +33,7 @@ public class GameRound {
     private String payload;
 
     @Enumerated(EnumType.STRING)
-    private GameType type = GameType.QUIZ; // Default
+    private GameType type = GameType.QUIZ;
 
     @Enumerated(EnumType.STRING)
     private RoundStatus status = RoundStatus.CREATED;

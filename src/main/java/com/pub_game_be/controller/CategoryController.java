@@ -1,4 +1,5 @@
 package com.pub_game_be.controller;
+
 import com.pub_game_be.domain.category.Category;
 import com.pub_game_be.repository.CategoryRepository;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,6 @@ public class CategoryController {
 
     @GetMapping
     public List<Category> getAll() {
-        // Restituisce tutte le categorie (STORIA, SPORT, CINEMA, ecc.)
         return categoryRepo.findAll();
     }
 }

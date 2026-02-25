@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor // Crea il costruttore per il Repository automaticamente
+@RequiredArgsConstructor
 public class GameService {
 
     private final GameRoundRepository gameRoundRepository;

@@ -19,19 +19,13 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // Disabilita CSRF per API REST
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ PERMETTI endpoint di test SENZA autenticazione
                         .requestMatchers("/api/test/**").permitAll()
-
-                        // ✅ PERMETTI endpoint pubblici
-                        .requestMatchers("/games/**","/games").permitAll()
+                        .requestMatchers("/games/**", "/games").permitAll()
                         .requestMatchers("/categories", "/categories/**").permitAll()
                         .requestMatchers("/ws-pubgame/**").permitAll()
-
-                        // Tutto il resto richiede autenticazione
-                        .anyRequest().authenticated()
-                );
+                        .anyRequest().authenticated());
 
         return http.build();
     }
@@ -43,8 +37,7 @@ public class SecurityConfig {
                 "http://localhost:*",
                 "http://127.0.0.1:*",
                 "http://192.168.*.*:*",
-                "http://10.*.*.*:*"
-        ));
+                "http://10.*.*.*:*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

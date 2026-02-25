@@ -11,9 +11,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "question_option")
-@Data                       // Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor          // Required by JPA
-@AllArgsConstructor         // Useful for testing
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class QuestionOption {
 
     @Id

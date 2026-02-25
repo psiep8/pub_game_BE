@@ -11,9 +11,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "question")
-@Data                       // Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor          // Required by JPA
-@AllArgsConstructor         // Useful for testing
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Question {
 
     @Id
@@ -31,7 +31,7 @@ public class Question {
 
     private String text;
     private String correctAnswer;
-    private String difficulty; // EASY, MEDIUM, HARD
+    private String difficulty;
 
     @Column(columnDefinition = "TEXT")
     private String payload;
