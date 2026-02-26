@@ -29,7 +29,7 @@ public class QuestionGeneratorService {
     private final int MAX_RECENT = 20;
 
     public QuestionGeneratorService(TMDBImageService tmdbImageService,
-            AppleMusicCuratorService appleMusicCuratorService) {
+                                    AppleMusicCuratorService appleMusicCuratorService) {
         this.tmdbImageService = tmdbImageService;
         this.appleMusicCuratorService = appleMusicCuratorService;
     }
@@ -38,7 +38,7 @@ public class QuestionGeneratorService {
         RestTemplate restTemplate = new RestTemplate();
 
         if ("ROULETTE".equalsIgnoreCase(type)) {
-            String[] colors = { "ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO" };
+            String[] colors = {"ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"};
             String winningColor = colors[new Random().nextInt(colors.length)];
 
             JSONObject response = new JSONObject();
@@ -70,6 +70,15 @@ public class QuestionGeneratorService {
         };
 
         String prompt;
+        if ("SCREAM_RACE".equalsIgnoreCase(type)) {
+            return """
+                    {
+                        "type": "SCREAM_RACE",
+                        "duration": 30,
+                        "instructions": "Urla nel microfono per far avanzare la tua squadra!"
+                    }
+                    """;
+        }
 
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
             String recentList = recentCelebrities.isEmpty()
@@ -467,6 +476,14 @@ public class QuestionGeneratorService {
             String fallbackJson = safeQuizFallbacks[new Random().nextInt(safeQuizFallbacks.length)];
             return fallbackJson;
 
+        } else if ("SCREAM_RACE".equalsIgnoreCase(type)) {
+            return """
+                    {
+                        "type": "SCREAM_RACE",
+                        "duration": 30,
+                        "instructions": "Urla nel microfono per far avanzare la tua squadra!"
+                    }
+                    """;
         } else if ("TRUE_FALSE".equalsIgnoreCase(type)) {
             String[] safeTrueFalseFallbacks = {
                     """
@@ -554,7 +571,7 @@ public class QuestionGeneratorService {
     }
 
     private String pickRandomProverb() {
-        String[] provs = new String[] {
+        String[] provs = new String[]{
                 "Chi dorme non piglia pesci",
                 "L'abito non fa il monaco",
                 "Chi va piano va sano e va lontano",
