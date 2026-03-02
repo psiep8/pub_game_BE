@@ -10,4 +10,5 @@ public enum GameType {
     WHEEL_OF_FORTUNE,
     ONE_VS_ONE,
     SCREAM_RACE,
+    ARENA
 }

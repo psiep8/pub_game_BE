@@ -29,7 +29,7 @@ public class QuestionGeneratorService {
     private final int MAX_RECENT = 20;
 
     public QuestionGeneratorService(TMDBImageService tmdbImageService,
-                                    AppleMusicCuratorService appleMusicCuratorService) {
+            AppleMusicCuratorService appleMusicCuratorService) {
         this.tmdbImageService = tmdbImageService;
         this.appleMusicCuratorService = appleMusicCuratorService;
     }
@@ -38,7 +38,7 @@ public class QuestionGeneratorService {
         RestTemplate restTemplate = new RestTemplate();
 
         if ("ROULETTE".equalsIgnoreCase(type)) {
-            String[] colors = {"ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"};
+            String[] colors = { "ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO" };
             String winningColor = colors[new Random().nextInt(colors.length)];
 
             JSONObject response = new JSONObject();
@@ -201,7 +201,52 @@ public class QuestionGeneratorService {
                             "Rispondi SOLO con JSON valido (NO markdown).",
                     category, difficulty, difficultyContext);
         }
-        if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
+        if ("ARENA".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei il presentatore di un quiz televisivo.\n" +
+                            "CATEGORIA: %s\n" +
+                            "Genera una lista di 20 domande QUIZ (4 opzioni) per la modalità ARENA (Battle Royale).\n" +
+                            "⚠️ REGOLE RIGIDE:\n" +
+                            "1. Le prime 10 domande devono essere MOLTO FACILI.\n" +
+                            "2. Le restanti 10 domande devono essere di DIFFICOLTÀ MEDIA.\n" +
+                            "3. Ogni oggetto JSON deve avere: \"question\", \"options\" (4 stringhe), \"correctAnswer\" (esatta), \"difficulty\" (\"easy\" o \"medium\").\n"
+                            +
+                            "4. NON aggiungere testo extra, solo un array JSON valido.\n\n" +
+                            "Esempio formato:\n" +
+                            "[\n" +
+                            "  { \"question\": \"...\", \"options\": [\"A\",\"B\",\"C\",\"D\"], \"correctAnswer\": \"A\", \"difficulty\": \"easy\" },\n"
+                            +
+                            "  ...\n" +
+                            "]",
+                    category);
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("model", "llama-3.3-70b-versatile");
+            request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+            request.put("temperature", 0.7);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            try {
+                ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, entity, String.class);
+                String rawContent = parseJsonResponse(response.getBody());
+                String cleanedJson = cleanAiJson(rawContent);
+
+                // Create a wrapper object for Arena
+                JSONObject wrapper = new JSONObject();
+                wrapper.put("type", "ARENA");
+                wrapper.put("questions", new JSONArray(cleanedJson));
+                return wrapper.toString();
+
+            } catch (Exception e) {
+                return getFallbackJson("ARENA");
+            }
+
+        } else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
@@ -565,13 +610,23 @@ public class QuestionGeneratorService {
                         "type": "ONE_VS_ONE"
                     }
                     """;
+        } else if ("ARENA".equalsIgnoreCase(type)) {
+            return """
+                    {
+                        "type": "ARENA",
+                        "questions": [
+                          { "question": "Quanto fa 5 + 5?", "options": ["8", "10", "12", "15"], "correctAnswer": "10", "difficulty": "easy" },
+                          { "question": "Qual è la capitale d'Italia?", "options": ["Milano", "Roma", "Napoli", "Torino"], "correctAnswer": "Roma", "difficulty": "easy" }
+                        ]
+                    }
+                    """;
         }
 
         return "{}";
     }
 
     private String pickRandomProverb() {
-        String[] provs = new String[]{
+        String[] provs = new String[] {
                 "Chi dorme non piglia pesci",
                 "L'abito non fa il monaco",
                 "Chi va piano va sano e va lontano",
