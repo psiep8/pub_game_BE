@@ -17,7 +17,7 @@ public class GameWebSocketController {
 
     @MessageMapping("/game/{gameId}/status")
     @SendTo("/topic/game/{gameId}/status")
-    public Map<String, String> updateStatus(@DestinationVariable("gameId") Long gameId, Map<String, String> status) {
+    public Map<String, Object> updateStatus(@DestinationVariable("gameId") Long gameId, Map<String, Object> status) {
         return status;
     }
 }
