@@ -20,6 +20,7 @@ public class QuestionOption {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "opt_value")
     private String value;
 
     private boolean correct;

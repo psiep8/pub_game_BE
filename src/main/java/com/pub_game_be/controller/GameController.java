@@ -93,6 +93,12 @@ public class GameController {
         return savedRound;
     }
 
+    @GetMapping("/{gameId}/arena-question")
+    public String getArenaQuestion(@PathVariable("gameId") Long gameId,
+            @RequestParam("category") String category) {
+        return questionGeneratorService.generateSingleArenaQuestion(category);
+    }
+
     private String normalizeWheelPayload(String aiPayload) {
         if (aiPayload == null)
             return new JSONObject().put("proverb", "").toString();

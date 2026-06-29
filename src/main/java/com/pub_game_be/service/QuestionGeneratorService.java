@@ -22,23 +22,37 @@ public class QuestionGeneratorService {
     @Value("${groq.api.key}")
     private String apiKey;
 
+    @Value("${groq.api.model}")
+    private String model;
+
+    @Value("${groq.api.temperature}")
+    private double defaultTemperature;
+
+    @Value("${groq.api.image-blur-temperature}")
+    private double imageBlurTemperature;
+
+    private final RestTemplate restTemplate;
     private final TMDBImageService tmdbImageService;
     private final AppleMusicCuratorService appleMusicCuratorService;
+    private final com.pub_game_be.repository.CategoryRepository categoryRepository;
 
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService,
-                                    AppleMusicCuratorService appleMusicCuratorService) {
+    public QuestionGeneratorService(RestTemplate restTemplate,
+            TMDBImageService tmdbImageService,
+            AppleMusicCuratorService appleMusicCuratorService,
+            com.pub_game_be.repository.CategoryRepository categoryRepository) {
+        this.restTemplate = restTemplate;
         this.tmdbImageService = tmdbImageService;
         this.appleMusicCuratorService = appleMusicCuratorService;
+        this.categoryRepository = categoryRepository;
     }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
-        RestTemplate restTemplate = new RestTemplate();
 
         if ("ROULETTE".equalsIgnoreCase(type)) {
-            String[] colors = {"ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO"};
+            String[] colors = { "ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO" };
             String winningColor = colors[new Random().nextInt(colors.length)];
 
             JSONObject response = new JSONObject();
@@ -201,7 +215,54 @@ public class QuestionGeneratorService {
                             "Rispondi SOLO con JSON valido (NO markdown).",
                     category, difficulty, difficultyContext);
         }
-        if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
+        if ("ARENA".equalsIgnoreCase(type)) {
+            prompt = String.format(
+                    "Sei il presentatore di un quiz televisivo.\n" +
+                            "Genera una lista di 40 domande miste per la modalità ARENA (Battle Royale).\n" +
+                            "⚠️ REGOLE RIGIDE:\n" +
+                            "1. Alterna diverse categorie (Scienza, Storia, Sport, Cinema, Geografia, Curiosità, ecc.).\n"
+                            +
+                            "2. Usa un mix di tipi: 70%% tipo 'QUIZ' (4 opzioni) e 30%% tipo 'TRUE_FALSE' (2 opzioni: VERO, FALSO).\n"
+                            +
+                            "3. Le prime 20 domande devono essere FACILI, le restanti 20 di DIFFICOLTÀ MEDIA.\n" +
+                            "4. Ogni oggetto JSON deve avere: \"question\", \"options\" (array di stringhe), \"correctAnswer\" (valore esatto presente in options), \"difficulty\" (\"easy\" o \"medium\"), \"category\" (nome categoria).\n"
+                            +
+                            "5. Per le domande TRUE_FALSE, 'options' deve essere [\"VERO\", \"FALSO\"].\n" +
+                            "6. Rispondi SOLO con un array JSON valido, senza testo extra.\n\n" +
+                            "Esempio formato:\n" +
+                            "[\n" +
+                            "  { \"question\": \"...\", \"options\": [\"A\",\"B\",\"C\",\"D\"], \"correctAnswer\": \"A\", \"difficulty\": \"easy\", \"category\": \"Storia\" },\n"
+                            +
+                            "  { \"question\": \"...\", \"options\": [\"VERO\",\"FALSO\"], \"correctAnswer\": \"VERO\", \"difficulty\": \"easy\", \"category\": \"Scienza\" }\n"
+                            +
+                            "]");
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("model", model);
+            request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+            request.put("temperature", defaultTemperature);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            try {
+                ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, entity, String.class);
+                String rawContent = parseJsonResponse(response.getBody());
+                String cleanedJson = cleanAiJson(rawContent);
+
+                JSONObject wrapper = new JSONObject();
+                wrapper.put("type", "ARENA");
+                wrapper.put("questions", new JSONArray()); // Return empty array to TV, devices will fetch individually
+                return wrapper.toString();
+
+            } catch (Exception e) {
+                return getFallbackJson("ARENA");
+            }
+
+        } else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
@@ -233,13 +294,13 @@ public class QuestionGeneratorService {
         }
 
         Map<String, Object> request = new HashMap<>();
-        request.put("model", "llama-3.3-70b-versatile");
+        request.put("model", model);
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
 
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
-            request.put("temperature", 1.3);
+            request.put("temperature", imageBlurTemperature);
         } else {
-            request.put("temperature", 0.7);
+            request.put("temperature", defaultTemperature);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -341,6 +402,80 @@ public class QuestionGeneratorService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public String generateSingleArenaQuestion(String category) {
+        String prompt = "Sei il presentatore di un quiz televisivo.\n" +
+                "Genera UNA singola domanda casuale per la modalità ARENA (Battle Royale).\n" +
+                "⚠️ REGOLE RIGIDE:\n" +
+                "1. La categoria della domanda DEVE essere la seguente: " + category + ".\n" +
+                "2. Scegli casualmente il tipo: 70% probabilità 'QUIZ' (4 opzioni) o 30% probabilità 'TRUE_FALSE' (2 opzioni: VERO, FALSO).\n"
+                +
+                "3. Difficoltà: Facile o Media.\n" +
+                "4. L'oggetto JSON deve avere ESATTAMENTE: \"question\" (testo), \"options\" (array di stringhe), \"correctAnswer\" (valore esatto), \"difficulty\", \"category\".\n"
+                +
+                "5. Per TRUE_FALSE, 'options' deve essere ESATTAMENTE [\"VERO\", \"FALSO\"].\n" +
+                "6. Rispondi SOLO con un oggetto JSON valido, senza list, senza array attorno, nessun testo extra.\n\n"
+                +
+                "Esempio QUIZ:\n" +
+                "{ \"question\": \"...\", \"options\": [\"A\",\"B\",\"C\",\"D\"], \"correctAnswer\": \"A\", \"difficulty\": \"easy\", \"category\": \"Storia\" }\n\n"
+                +
+                "Esempio TRUE_FALSE:\n" +
+                "{ \"question\": \"...\", \"options\": [\"VERO\",\"FALSO\"], \"correctAnswer\": \"VERO\", \"difficulty\": \"medium\", \"category\": \"Scienza\" }";
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("model", model);
+        request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        request.put("temperature", defaultTemperature);
+        request.put("response_format", Map.of("type", "json_object")); // Force JSON object
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, entity, String.class);
+            String rawContent = parseJsonResponse(response.getBody());
+            String cleanedJson = cleanAiJson(rawContent);
+
+            JSONObject jsonObj = new JSONObject(cleanedJson);
+
+            // Validate it
+            if (!jsonObj.has("correctAnswer") || !jsonObj.has("options") || !jsonObj.has("question")) {
+                System.err.println("❌ Formato JSON AI non valido: " + cleanedJson);
+                return getSingleFallbackArenaQuestion();
+            }
+
+            return jsonObj.toString();
+
+        } catch (Exception e) {
+            System.err.println("❌ Eccezione durante la generazione AI Arena: " + e.getMessage());
+            return getSingleFallbackArenaQuestion();
+        }
+    }
+
+    private String getSingleFallbackArenaQuestion() {
+        String[] safeFallbacks = {
+                "{ \"question\": \"Quanto fa 5 + 5?\", \"options\": [\"8\", \"10\", \"12\", \"15\"], \"correctAnswer\": \"10\", \"difficulty\": \"easy\", \"category\": \"Matematica\" }",
+                "{ \"question\": \"Qual è la capitale d'Italia?\", \"options\": [\"Milano\", \"Roma\", \"Napoli\", \"Torino\"], \"correctAnswer\": \"Roma\", \"difficulty\": \"easy\", \"category\": \"Geografia\" }",
+                "{ \"question\": \"Qual è il fiume più lungo del mondo?\", \"options\": [\"Nilo\", \"Rio delle Amazzoni\", \"Gange\", \"Mississippi\"], \"correctAnswer\": \"Rio delle Amazzoni\", \"difficulty\": \"medium\", \"category\": \"Geografia\" }",
+                "{ \"question\": \"Chi ha dipinto la Gioconda?\", \"options\": [\"Michelangelo\", \"Raffaello\", \"Munch\", \"Leonardo Da Vinci\"], \"correctAnswer\": \"Leonardo Da Vinci\", \"difficulty\": \"easy\", \"category\": \"Arte\" }",
+                "{ \"question\": \"Qual è il pianeta più grande del sistema solare?\", \"options\": [\"Giove\", \"Saturno\", \"Terra\", \"Marte\"], \"correctAnswer\": \"Giove\", \"difficulty\": \"easy\", \"category\": \"Scienza\" }",
+                "{ \"question\": \"La Terra è piatta?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"FALSO\", \"difficulty\": \"easy\", \"category\": \"Geografia\" }",
+                "{ \"question\": \"L'acqua bolle a 100 gradi Celsius?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"VERO\", \"difficulty\": \"easy\", \"category\": \"Scienza\" }",
+                "{ \"question\": \"Roma è la capitale della Francia?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"FALSO\", \"difficulty\": \"easy\", \"category\": \"Geografia\" }",
+                "{ \"question\": \"Il sole è una stella?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"VERO\", \"difficulty\": \"easy\", \"category\": \"Scienza\" }",
+                "{ \"question\": \"In che anno è iniziata la Prima Guerra Mondiale?\", \"options\": [\"1914\", \"1918\", \"1939\", \"1945\"], \"correctAnswer\": \"1914\", \"difficulty\": \"medium\", \"category\": \"Storia\" }",
+                "{ \"question\": \"Chi ha scritto la Divina Commedia?\", \"options\": [\"Boccaccio\", \"Petrarca\", \"Dante Alighieri\", \"Machiavelli\"], \"correctAnswer\": \"Dante Alighieri\", \"difficulty\": \"easy\", \"category\": \"Letteratura\" }",
+                "{ \"question\": \"Quale animale è conosciuto come il miglior amico dell'uomo?\", \"options\": [\"Gatto\", \"Cane\", \"Cavallo\", \"Delfino\"], \"correctAnswer\": \"Cane\", \"difficulty\": \"easy\", \"category\": \"Natura\" }",
+                "{ \"question\": \"Il ragno è un insetto?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"FALSO\", \"difficulty\": \"medium\", \"category\": \"Natura\" }",
+                "{ \"question\": \"Qual è lo sport più popolare al mondo?\", \"options\": [\"Basket\", \"Tennis\", \"Calcio\", \"Rugby\"], \"correctAnswer\": \"Calcio\", \"difficulty\": \"easy\", \"category\": \"Sport\" }",
+                "{ \"question\": \"L'Uomo Ragno fa parte della DC Comics?\", \"options\": [\"VERO\", \"FALSO\"], \"correctAnswer\": \"FALSO\", \"difficulty\": \"medium\", \"category\": \"Fumetti\" }",
+                "{ \"question\": \"Quanti giorni ci sono in un anno bisestile?\", \"options\": [\"364\", \"365\", \"366\", \"367\"], \"correctAnswer\": \"366\", \"difficulty\": \"easy\", \"category\": \"Curiosità\" }"
+        };
+        return safeFallbacks[new Random().nextInt(safeFallbacks.length)];
     }
 
     private void addToRecentCelebrities(String celebrity) {
@@ -565,13 +700,20 @@ public class QuestionGeneratorService {
                         "type": "ONE_VS_ONE"
                     }
                     """;
+        } else if ("ARENA".equalsIgnoreCase(type)) {
+            // Ritorna solo il JSON base perché le domande verranno fetchate dai dispositivi
+            return """
+                    {
+                        "type": "ARENA"
+                    }
+                    """;
         }
 
         return "{}";
     }
 
     private String pickRandomProverb() {
-        String[] provs = new String[]{
+        String[] provs = new String[] {
                 "Chi dorme non piglia pesci",
                 "L'abito non fa il monaco",
                 "Chi va piano va sano e va lontano",
