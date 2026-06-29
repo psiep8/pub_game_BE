@@ -7,53 +7,36 @@ Gestisce REST API, WebSocket (STOMP/SockJS), generazione domande AI via Groq, e 
 
 - JDK 21+
 - Maven 3.8+ (incluso `./mvnw`)
-- MySQL 8+ (database `pub_game`)
+- MySQL 8+ (solo per profilo `mysql`)
 
-## Configurazione
-
-Copia o imposta le variabili d'ambiente:
-
-```bash
-export GROQ_API_KEY="gsk_..."
-export TMDB_API_KEY="..."
-```
-
-Oppure modifica `application.yml`:
-
-```yaml
-groq:
-  api:
-    key: ${GROQ_API_KEY}
-    model: "llama-3.3-70b-versatile"    # Modello AI
-    temperature: 0.7                     # Creatività default
-    image-blur-temperature: 1.3          # Creatività per IMAGE_BLUR
-
-tmdb:
-  api:
-    key: ${TMDB_API_KEY}
-
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/pub_game?createDatabaseIfNotExist=true
-    username: root
-    password: root
-```
-
-## Avvio
+## Avvio rapido (H2 embedded — nessun database esterno)
 
 ```bash
 # Compila
 ./mvnw compile
 
-# Avvia
+# Avvia con H2 (database in memoria, nessuna installazione richiesta)
 ./mvnw spring-boot:run
-
-# Oppure build e run
-./mvnw package -DskipTests
-java -jar target/pub_game_BE-*.jar
 ```
 
 Il server parte su `http://0.0.0.0:8080`.
+Console H2: `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:pub_game`)
+
+## Avvio con MySQL
+
+```bash
+# Avvia con MySQL (richiede MySQL in esecuzione su localhost:3306)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
+```
+
+## Variabili d'ambiente (opzionali)
+
+```bash
+export GROQ_API_KEY="gsk_..."    # Per generazione domande AI
+export TMDB_API_KEY="..."         # Per immagini celebrity
+```
+
+Se non impostate, l'AI e TMDB vengono saltati e si usano i fallback locali (versione free).
 
 ## API principali
 
