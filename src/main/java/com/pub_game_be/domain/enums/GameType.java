@@ -8,7 +8,7 @@ public enum GameType {
     ROULETTE,
     CHRONO,
     WHEEL_OF_FORTUNE,
-    ONE_VS_ONE,
+    // ONE_VS_ONE,
     SCREAM_RACE,
     ARENA
 }

@@ -262,7 +262,8 @@ public class QuestionGeneratorService {
                 return getFallbackJson("ARENA");
             }
 
-        } else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
+        }
+        /*} else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo.\n" +
                             "CATEGORIA: %s\n" +
@@ -281,7 +282,8 @@ public class QuestionGeneratorService {
                             "  \"type\": \"ONE_VS_ONE\"\n" +
                             "}",
                     category, difficulty, difficultyContext);
-        } else {
+        }*/
+        else {
             prompt = String.format(
                     "Sei il presentatore di un quiz televisivo. Genera una domanda per la categoria %s di tipo %s.\n" +
                             "LIVELLO DI DIFFICOLTÀ: %s (%s).\n" +
@@ -691,7 +693,8 @@ public class QuestionGeneratorService {
                         "type": "ROULETTE"
                     }
                     """;
-        } else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
+        }
+        /*} else if ("ONE_VS_ONE".equalsIgnoreCase(type) || "1VS1".equalsIgnoreCase(type)) {
             return """
                     {
                         "question": "Qual è l'elemento chimico con simbolo Au?",
@@ -700,7 +703,8 @@ public class QuestionGeneratorService {
                         "type": "ONE_VS_ONE"
                     }
                     """;
-        } else if ("ARENA".equalsIgnoreCase(type)) {
+        }*/
+        else if ("ARENA".equalsIgnoreCase(type)) {
             // Ritorna solo il JSON base perché le domande verranno fetchate dai dispositivi
             return """
                     {
