@@ -22,6 +22,16 @@ public class QuestionGeneratorService {
     @Value("${groq.api.key}")
     private String apiKey;
 
+    @Value("${groq.api.model}")
+    private String model;
+
+    @Value("${groq.api.temperature}")
+    private double defaultTemperature;
+
+    @Value("${groq.api.image-blur-temperature}")
+    private double imageBlurTemperature;
+
+    private final RestTemplate restTemplate;
     private final TMDBImageService tmdbImageService;
     private final AppleMusicCuratorService appleMusicCuratorService;
     private final com.pub_game_be.repository.CategoryRepository categoryRepository;
@@ -29,16 +39,17 @@ public class QuestionGeneratorService {
     private final Set<String> recentCelebrities = ConcurrentHashMap.newKeySet();
     private final int MAX_RECENT = 20;
 
-    public QuestionGeneratorService(TMDBImageService tmdbImageService,
+    public QuestionGeneratorService(RestTemplate restTemplate,
+            TMDBImageService tmdbImageService,
             AppleMusicCuratorService appleMusicCuratorService,
             com.pub_game_be.repository.CategoryRepository categoryRepository) {
+        this.restTemplate = restTemplate;
         this.tmdbImageService = tmdbImageService;
         this.appleMusicCuratorService = appleMusicCuratorService;
         this.categoryRepository = categoryRepository;
     }
 
     public String generateQuestionJson(String category, String type, String difficulty) {
-        RestTemplate restTemplate = new RestTemplate();
 
         if ("ROULETTE".equalsIgnoreCase(type)) {
             String[] colors = { "ROSSO", "NERO", "VERDE", "BLU", "GIALLO", "BIANCO" };
@@ -227,9 +238,9 @@ public class QuestionGeneratorService {
                             "]");
 
             Map<String, Object> request = new HashMap<>();
-            request.put("model", "llama-3.3-70b-versatile");
+            request.put("model", model);
             request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-            request.put("temperature", 0.7);
+            request.put("temperature", defaultTemperature);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(apiKey);
@@ -283,13 +294,13 @@ public class QuestionGeneratorService {
         }
 
         Map<String, Object> request = new HashMap<>();
-        request.put("model", "llama-3.3-70b-versatile");
+        request.put("model", model);
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
 
         if ("IMAGE_BLUR".equalsIgnoreCase(type)) {
-            request.put("temperature", 1.3);
+            request.put("temperature", imageBlurTemperature);
         } else {
-            request.put("temperature", 0.7);
+            request.put("temperature", defaultTemperature);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -394,8 +405,6 @@ public class QuestionGeneratorService {
     }
 
     public String generateSingleArenaQuestion(String category) {
-        RestTemplate restTemplate = new RestTemplate();
-
         String prompt = "Sei il presentatore di un quiz televisivo.\n" +
                 "Genera UNA singola domanda casuale per la modalità ARENA (Battle Royale).\n" +
                 "⚠️ REGOLE RIGIDE:\n" +
@@ -415,9 +424,9 @@ public class QuestionGeneratorService {
                 "{ \"question\": \"...\", \"options\": [\"VERO\",\"FALSO\"], \"correctAnswer\": \"VERO\", \"difficulty\": \"medium\", \"category\": \"Scienza\" }";
 
         Map<String, Object> request = new HashMap<>();
-        request.put("model", "llama-3.3-70b-versatile");
+        request.put("model", model);
         request.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-        request.put("temperature", 0.9); // Higher temperature for more randomness
+        request.put("temperature", defaultTemperature);
         request.put("response_format", Map.of("type", "json_object")); // Force JSON object
 
         HttpHeaders headers = new HttpHeaders();
